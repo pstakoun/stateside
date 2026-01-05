@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
-import { generatePaths, ComposedPath, ComposedStage } from "@/lib/path-composer";
+import { generatePaths, ComposedPath, ComposedStage, setProcessingTimes, getProcessingTimes } from "@/lib/path-composer";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES } from "@/lib/processing-times";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -36,6 +37,30 @@ export default function TimelineChart({
 }: TimelineChartProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
+  const [processingTimes, setLocalProcessingTimes] = useState<ProcessingTimes>(DEFAULT_PROCESSING_TIMES);
+  const [dataLastUpdated, setDataLastUpdated] = useState<string | null>(null);
+  const [isLoadingTimes, setIsLoadingTimes] = useState(false);
+
+  // Fetch processing times on mount
+  useEffect(() => {
+    async function fetchTimes() {
+      setIsLoadingTimes(true);
+      try {
+        const response = await fetch("/api/processing-times");
+        if (response.ok) {
+          const result = await response.json();
+          setProcessingTimes(result.data);
+          setLocalProcessingTimes(result.data);
+          setDataLastUpdated(result.meta.lastUpdated);
+        }
+      } catch (error) {
+        console.error("Failed to fetch processing times:", error);
+      } finally {
+        setIsLoadingTimes(false);
+      }
+    }
+    fetchTimes();
+  }, []);
 
   const years = Array.from({ length: MAX_YEARS + 1 }, (_, i) => i);
 
@@ -43,11 +68,12 @@ export default function TimelineChart({
   const currentNodeId = statusToNodeId[filters.currentStatus];
 
   // Generate paths dynamically using the composer
+  // Re-generate when processing times are updated
   const paths = useMemo(() => {
     const generatedPaths = generatePaths(filters);
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
-  }, [filters, onMatchingCountChange]);
+  }, [filters, onMatchingCountChange, processingTimes]);
 
   // Check if a path has multiple tracks
   const hasMultipleTracks = (stages: ComposedStage[]) => {
@@ -292,10 +318,34 @@ export default function TimelineChart({
           </div>
         </div>
 
-        {/* Note */}
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Paths generated based on your situation. Click any stage for details.
-        </p>
+        {/* Data freshness and note */}
+        <div className="mt-6 text-center">
+          {dataLastUpdated && (
+            <div className="text-xs text-gray-500 mb-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                Processing times updated: {new Date(dataLastUpdated).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+              {processingTimes.dol.perm.analystReview.currentlyProcessing && (
+                <span className="ml-3 text-gray-400">
+                  PERM queue: {processingTimes.dol.perm.analystReview.currentlyProcessing} cases
+                </span>
+              )}
+            </div>
+          )}
+          {isLoadingTimes && (
+            <div className="text-xs text-gray-400 mb-2">
+              Loading latest processing times...
+            </div>
+          )}
+          <p className="text-xs text-gray-400">
+            Paths generated based on your situation. Click any stage for details.
+          </p>
+        </div>
       </div>
     </div>
   );

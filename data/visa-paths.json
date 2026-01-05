@@ -259,18 +259,18 @@
     },
     "perm": {
       "id": "perm",
-      "name": "PERM Filing",
+      "name": "PERM Labor Cert",
       "shortName": "PERM",
-      "fullName": "ETA-9089",
+      "fullName": "Labor Certification (ETA-9089)",
       "category": "greencard",
-      "description": "Final PERM application to DOL certifying no qualified US workers found.",
+      "description": "Labor certification proving no qualified US workers available. DOL currently processing August 2024 cases.",
       "requirements": [
         "Completed recruitment with no qualified US applicants",
         "Valid prevailing wage determination",
         "Employer ability to pay offered wage"
       ],
       "filings": [
-        { "form": "ETA-9089", "name": "PERM Application", "fee": 0, "filed_by": "Employer", "processing": "14-18 months" }
+        { "form": "ETA-9089", "name": "PERM Application", "fee": 0, "filed_by": "Employer", "processing": "15-19 months" }
       ],
       "stats": {
         "approvalRate": 0.89,

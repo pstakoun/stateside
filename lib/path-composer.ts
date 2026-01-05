@@ -1,5 +1,85 @@
 import { FilterState, CurrentStatus, Education, Experience } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths } from "./processing-times";
+
+// Current processing times (can be updated dynamically)
+let currentProcessingTimes: ProcessingTimes = DEFAULT_PROCESSING_TIMES;
+
+// Set processing times (called when cache is refreshed)
+export function setProcessingTimes(times: ProcessingTimes): void {
+  currentProcessingTimes = times;
+}
+
+// Get current processing times
+export function getProcessingTimes(): ProcessingTimes {
+  return currentProcessingTimes;
+}
+
+// Get dynamic duration for a specific stage based on current processing times
+function getDynamicDuration(nodeId: string): Duration | null {
+  const times = currentProcessingTimes;
+
+  switch (nodeId) {
+    case "pwd":
+      // PWD: use DOL data
+      const pwdMonths = times.dol.pwd.estimatedMonths;
+      return {
+        min: pwdMonths * 0.8 / 12,
+        max: (pwdMonths + 1) / 12,
+        display: `${pwdMonths}-${pwdMonths + 1} mo`,
+      };
+
+    case "perm":
+      // PERM: use DOL analyst review data
+      const permMonths = times.dol.perm.analystReview.estimatedMonths;
+      return {
+        min: Math.max(permMonths - 2, 6) / 12,
+        max: (permMonths + 2) / 12,
+        display: `${Math.max(permMonths - 2, 6)}-${permMonths + 2} mo`,
+      };
+
+    case "i140":
+    case "eb1":
+    case "eb2niw":
+      // I-140: use USCIS data, show premium processing option
+      const i140Data = times.uscis["I-140"];
+      if (i140Data && i140Data.length > 0) {
+        // Find regular and premium times
+        const regular = i140Data.find(t => t.serviceCenter !== "Premium");
+        const premium = i140Data.find(t => t.serviceCenter === "Premium");
+
+        const minMonths = premium?.processingTime.min ?? 0.5;
+        const maxMonths = regular?.processingTime.max ?? 9;
+
+        return {
+          min: minMonths / 12,
+          max: maxMonths / 12,
+          display: minMonths < 1 ? `${Math.round(minMonths * 30)}d-${maxMonths}mo` : formatMonths(minMonths, maxMonths),
+        };
+      }
+      break;
+
+    case "i485":
+      // I-485: use USCIS data
+      const i485Data = times.uscis["I-485"];
+      if (i485Data && i485Data.length > 0) {
+        const avgMin = i485Data.reduce((sum, t) => sum + t.processingTime.min, 0) / i485Data.length;
+        const avgMax = i485Data.reduce((sum, t) => sum + t.processingTime.max, 0) / i485Data.length;
+
+        return {
+          min: avgMin / 12,
+          max: avgMax / 12,
+          display: formatMonths(avgMin, avgMax),
+        };
+      }
+      break;
+
+    default:
+      return null;
+  }
+
+  return null;
+}
 
 // Duration range in years
 export interface Duration {
@@ -139,7 +219,7 @@ export const STATUS_PATHS: StatusPath[] = [
     name: "Student → Bachelor's",
     emoji: "",
     description: "Get a US Bachelor's degree, then work on OPT while pursuing green card",
-    validFromStatuses: ["canada"],
+    validFromStatuses: ["canada", "f1"],
     requirements: {
       maxEducation: "highschool",
     },
@@ -571,20 +651,24 @@ function composePath(
     const stage = gcMethod.stages[i];
     const isConcurrent = stage.concurrent && i > 0;
 
+    // Get dynamic duration if available, otherwise use default
+    const dynamicDuration = getDynamicDuration(stage.nodeId);
+    const duration = dynamicDuration ?? stage.duration;
+
     // For concurrent stages, start at same time as previous stage
     // For sequential stages, start after the latest end time
     const stageStartYear = isConcurrent
       ? stages[stages.length - 1].startYear
       : gcSequentialYear;
 
-    const stageEndYear = stageStartYear + stage.duration.max;
+    const stageEndYear = stageStartYear + duration.max;
 
     stages.push({
       nodeId: stage.nodeId,
       durationYears: {
-        min: stage.duration.min,
-        max: stage.duration.max,
-        display: stage.duration.display || `${stage.duration.min}-${stage.duration.max} yr`,
+        min: duration.min,
+        max: duration.max,
+        display: duration.display || `${duration.min}-${duration.max} yr`,
       },
       track: "gc",
       startYear: stageStartYear,
@@ -607,7 +691,10 @@ function composePath(
 
   const minStatusYear = statusPath.stages.reduce((sum, s) => sum + s.duration.min, 0);
   const minGCYear = (statusPath.permStartOffset ?? 0) +
-    gcMethod.stages.filter(s => !s.concurrent).reduce((sum, s) => sum + s.duration.min, 0);
+    gcMethod.stages.filter(s => !s.concurrent).reduce((sum, s) => {
+      const dynamicDur = getDynamicDuration(s.nodeId);
+      return sum + (dynamicDur?.min ?? s.duration.min);
+    }, 0);
   const totalMin = Math.max(minStatusYear, minGCYear);
 
   // Build path name
