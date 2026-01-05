@@ -219,7 +219,7 @@
         "Education/experience requirements"
       ],
       "filings": [
-        { "form": "ETA-9141", "name": "Prevailing Wage Request", "fee": 0, "filed_by": "Employer", "processing": "4-6 months" }
+        { "form": "ETA-9141", "name": "Prevailing Wage Request", "fee": 0, "filed_by": "Employer", "processing": "5-7 months" }
       ],
       "stats": {
         "approvalRate": 0.99,
@@ -323,7 +323,7 @@
         "Admissible to the US"
       ],
       "filings": [
-        { "form": "I-485", "name": "Adjustment of Status Application", "fee": 1225, "filed_by": "You", "processing": "12-24 months" },
+        { "form": "I-485", "name": "Adjustment of Status Application", "fee": 1225, "filed_by": "You", "processing": "10-18 months" },
         { "form": "I-765", "name": "EAD (work permit)", "fee": 0, "filed_by": "You", "processing": "3-6 months", "note": "Included with I-485" },
         { "form": "I-131", "name": "Advance Parole (travel permit)", "fee": 0, "filed_by": "You", "processing": "3-6 months", "note": "Included with I-485" },
         { "form": "I-693", "name": "Medical Examination", "fee": "200-500", "filed_by": "You" }
