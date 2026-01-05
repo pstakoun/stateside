@@ -1,4 +1,5 @@
 import { FilterState, CurrentStatus, Education, Experience } from "./filter-paths";
+import visaData from "@/data/visa-paths.json";
 
 // Duration range in years
 export interface Duration {
@@ -66,6 +67,11 @@ export interface ComposedPath {
   gcCategory: string;
   totalYears: Duration;
   stages: ComposedStage[];
+  // Metrics for comparison
+  estimatedCost: number; // total filing fees
+  hasLottery: boolean; // requires H-1B lottery
+  isSelfPetition: boolean; // can file without employer
+  complexity: "low" | "medium" | "high";
 }
 
 export interface ComposedStage {
@@ -625,6 +631,32 @@ function composePath(
     description += `. Start PERM ${permTiming}.`;
   }
 
+  // Calculate estimated cost from filing fees
+  const nodeIds = Array.from(new Set(stages.map(s => s.nodeId)));
+  let estimatedCost = 0;
+  for (const nodeId of nodeIds) {
+    const node = visaData.nodes[nodeId as keyof typeof visaData.nodes];
+    if (node && "filings" in node) {
+      const filings = node.filings as Array<{ fee: number | string }>;
+      for (const filing of filings) {
+        const fee = typeof filing.fee === "number" ? filing.fee : parseInt(filing.fee) || 0;
+        estimatedCost += fee;
+      }
+    }
+  }
+
+  // Determine path characteristics
+  const hasLottery = nodeIds.includes("h1b");
+  const isSelfPetition = gcMethod.id === "niw" || gcMethod.id === "eb1a" || gcMethod.id === "marriage" || gcMethod.id === "eb5";
+
+  // Complexity based on number of stages and lottery
+  let complexity: "low" | "medium" | "high" = "medium";
+  if (isSelfPetition && stages.length <= 3) {
+    complexity = "low";
+  } else if (hasLottery || stages.length >= 8 || gcMethod.requiresPerm) {
+    complexity = "high";
+  }
+
   return {
     id: `${statusPath.id}_${gcMethod.id}`,
     name: pathName,
@@ -637,6 +669,10 @@ function composePath(
       display: `${totalMin.toFixed(1)}-${totalMax.toFixed(1)} yr`,
     },
     stages,
+    estimatedCost,
+    hasLottery,
+    isSelfPetition,
+    complexity,
   };
 }
 

@@ -135,10 +135,22 @@ export default function TimelineChart({
                       {path.name}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {path.totalYears.display}
+                      {path.totalYears.display} · ${path.estimatedCost.toLocaleString()}
                     </div>
-                    <div className="text-[10px] text-blue-600 font-medium">
-                      {path.gcCategory}
+                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                      <span className="text-[10px] text-blue-600 font-medium">
+                        {path.gcCategory}
+                      </span>
+                      {path.hasLottery && (
+                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded">
+                          lottery
+                        </span>
+                      )}
+                      {path.isSelfPetition && (
+                        <span className="text-[9px] bg-green-100 text-green-700 px-1 rounded">
+                          self-file
+                        </span>
+                      )}
                     </div>
                     {multiTrack && (
                       <div className="mt-1 text-[10px] text-gray-400 space-y-0.5">
