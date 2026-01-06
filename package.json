@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "rm -rf .next .tsbuildinfo",
+    "test": "npx tsx test-exhaustive.ts && npx tsx test-immigration-rules.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.0",

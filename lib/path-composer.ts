@@ -119,7 +119,6 @@ export interface PathRequirements {
 export interface StatusPath {
   id: string;
   name: string;
-  emoji: string;
   description: string;
   validFromStatuses: CurrentStatus[];
   requirements: PathRequirements;
@@ -142,16 +141,13 @@ export interface GCMethod {
 export interface ComposedPath {
   id: string;
   name: string;
-  emoji: string;
   description: string;
   gcCategory: string;
   totalYears: Duration;
   stages: ComposedStage[];
-  // Metrics for comparison
-  estimatedCost: number; // total filing fees
-  hasLottery: boolean; // requires H-1B lottery
-  isSelfPetition: boolean; // can file without employer
-  complexity: "low" | "medium" | "high";
+  estimatedCost: number;
+  hasLottery: boolean;
+  isSelfPetition: boolean;
 }
 
 export interface ComposedStage {
@@ -183,7 +179,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "student_masters",
     name: "Student → Master's",
-    emoji: "",
     description: "Get a US Master's degree to qualify for EB-2. Work on OPT while pursuing green card",
     validFromStatuses: ["canada", "tn", "h1b", "f1", "opt", "other"],
     requirements: {
@@ -200,7 +195,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "student_phd",
     name: "Student → PhD",
-    emoji: "",
     description: "Get a US PhD. Strong for NIW/EB-1A self-petition. Work on OPT while pursuing green card",
     validFromStatuses: ["canada", "tn", "h1b", "f1", "opt", "other"],
     requirements: {
@@ -217,7 +211,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "student_bachelors",
     name: "Student → Bachelor's",
-    emoji: "",
     description: "Get a US Bachelor's degree, then work on OPT while pursuing green card",
     validFromStatuses: ["canada", "f1"],
     requirements: {
@@ -233,7 +226,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "tn_direct",
     name: "TN Professional",
-    emoji: "",
     description: "TN visa for USMCA professionals. Canadians: apply at border (same day) or via I-129 change of status",
     validFromStatuses: ["canada", "tn", "h1b", "f1", "opt"],
     requirements: {
@@ -242,12 +234,11 @@ export const STATUS_PATHS: StatusPath[] = [
     stages: [
       { nodeId: "tn", duration: { min: 2, max: 3, display: "2-3 yr" }, note: "Renewable indefinitely" },
     ],
-    permStartOffset: 0.5,
+    permStartOffset: 0, // Can start PERM immediately on TN (common practice)
   },
   {
     id: "opt_h1b",
     name: "OPT → H-1B",
-    emoji: "",
     description: "Transition from OPT to H-1B via lottery while pursuing green card",
     validFromStatuses: ["f1", "opt"],
     requirements: {
@@ -262,7 +253,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "h1b_direct",
     name: "H-1B Direct",
-    emoji: "",
     description: "Continue on H-1B status while pursuing green card",
     validFromStatuses: ["h1b"],
     requirements: {
@@ -276,7 +266,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "opt_to_tn",
     name: "OPT → TN",
-    emoji: "",
     description: "Use OPT initially, then get TN at border (requires quick trip to Canada). No lottery required",
     validFromStatuses: ["f1", "opt"],
     requirements: {
@@ -286,12 +275,11 @@ export const STATUS_PATHS: StatusPath[] = [
       { nodeId: "opt", duration: { min: 0.5, max: 1, display: "6-12 mo" }, note: "Initial work authorization" },
       { nodeId: "tn", duration: { min: 2, max: 3, display: "2-3 yr" }, note: "Get TN at border" },
     ],
-    permStartOffset: 0.5,
+    permStartOffset: 0, // Can start PERM immediately on TN (common practice)
   },
   {
     id: "tn_to_h1b",
     name: "TN → H-1B",
-    emoji: "",
     description: "Start on TN, then switch to H-1B. H-1B allows dual intent for green card",
     validFromStatuses: ["canada", "tn"],
     requirements: {
@@ -306,7 +294,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "l1a",
     name: "L-1A Executive",
-    emoji: "",
     description: "Intracompany transfer as executive/manager, then EB-1C green card",
     validFromStatuses: ["canada", "other"],
     requirements: {
@@ -320,7 +307,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "l1b",
     name: "L-1B Specialized",
-    emoji: "",
     description: "Intracompany transfer with specialized knowledge. Requires PERM for green card",
     validFromStatuses: ["canada", "other"],
     requirements: {
@@ -334,7 +320,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "o1",
     name: "O-1 Extraordinary",
-    emoji: "",
     description: "Work visa for extraordinary ability. Strong path to EB-1A green card",
     validFromStatuses: ["canada", "tn", "h1b", "opt", "other"],
     requirements: {
@@ -348,7 +333,6 @@ export const STATUS_PATHS: StatusPath[] = [
   {
     id: "none",
     name: "Direct Filing",
-    emoji: "",
     description: "File directly for green card without employer sponsorship",
     validFromStatuses: ["canada", "tn", "h1b", "opt", "f1", "other"],
     requirements: {},
@@ -751,18 +735,9 @@ function composePath(
   const hasLottery = nodeIds.includes("h1b");
   const isSelfPetition = gcMethod.id === "niw" || gcMethod.id === "eb1a" || gcMethod.id === "marriage" || gcMethod.id === "eb5";
 
-  // Complexity based on number of stages and lottery
-  let complexity: "low" | "medium" | "high" = "medium";
-  if (isSelfPetition && stages.length <= 3) {
-    complexity = "low";
-  } else if (hasLottery || stages.length >= 8 || gcMethod.requiresPerm) {
-    complexity = "high";
-  }
-
   return {
     id: `${statusPath.id}_${gcMethod.id}`,
     name: pathName,
-    emoji: statusPath.emoji,
     description,
     gcCategory,
     totalYears: {
@@ -774,7 +749,6 @@ function composePath(
     estimatedCost,
     hasLottery,
     isSelfPetition,
-    complexity,
   };
 }
 

@@ -3,9 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
-import { generatePaths, ComposedPath, ComposedStage, setProcessingTimes, getProcessingTimes } from "@/lib/path-composer";
-import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, adaptDynamicData } from "@/lib/processing-times";
-import { DynamicImmigrationData } from "@/lib/dynamic-data";
+import { generatePaths, ComposedStage, setProcessingTimes } from "@/lib/path-composer";
+import { adaptDynamicData } from "@/lib/processing-times";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -31,13 +30,6 @@ const trackLabels: Record<string, string> = {
   gc: "GC Process",
 };
 
-// Extended state for dynamic data
-interface DynamicDataState {
-  processingTimes: ProcessingTimes;
-  priorityDates: DynamicImmigrationData["priorityDates"] | null;
-  sources: DynamicImmigrationData["sources"] | null;
-  fees: DynamicImmigrationData["fees"] | null;
-}
 
 export default function TimelineChart({
   onStageClick,
@@ -46,40 +38,23 @@ export default function TimelineChart({
 }: TimelineChartProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
-  const [dynamicData, setDynamicData] = useState<DynamicDataState>({
-    processingTimes: DEFAULT_PROCESSING_TIMES,
-    priorityDates: null,
-    sources: null,
-    fees: null,
-  });
-  const [dataLastUpdated, setDataLastUpdated] = useState<string | null>(null);
-  const [isLoadingTimes, setIsLoadingTimes] = useState(false);
+  const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
 
   // Fetch processing times on mount
   useEffect(() => {
     async function fetchTimes() {
-      setIsLoadingTimes(true);
       try {
         const response = await fetch("/api/processing-times");
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.data) {
-            const data: DynamicImmigrationData = result.data;
-            const adapted = adaptDynamicData(data);
+            const adapted = adaptDynamicData(result.data);
             setProcessingTimes(adapted);
-            setDynamicData({
-              processingTimes: adapted,
-              priorityDates: data.priorityDates,
-              sources: data.sources,
-              fees: data.fees,
-            });
-            setDataLastUpdated(data.lastUpdated);
+            setProcessingTimesLoaded(true);
           }
         }
       } catch (error) {
         console.error("Failed to fetch processing times:", error);
-      } finally {
-        setIsLoadingTimes(false);
       }
     }
     fetchTimes();
@@ -96,7 +71,7 @@ export default function TimelineChart({
     const generatedPaths = generatePaths(filters);
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
-  }, [filters, onMatchingCountChange, dynamicData.processingTimes]);
+  }, [filters, onMatchingCountChange, processingTimesLoaded]);
 
   // Check if a path has multiple tracks
   const hasMultipleTracks = (stages: ComposedStage[]) => {
@@ -261,6 +236,40 @@ export default function TimelineChart({
                       ? (node.shortName as string)
                       : (node.name.length > 8 ? node.name.substring(0, 6) + "…" : node.name);
 
+                    // Special rendering for the final Green Card destination
+                    if (isFinalGC) {
+                      return (
+                        <div
+                          key={`${stage.nodeId}-${idx}`}
+                          className={`absolute cursor-pointer transition-all duration-150
+                            ${isHovered ? "scale-105 z-30" : "z-10"}
+                          `}
+                          style={{
+                            left: `${left}px`,
+                            top: `${top}px`,
+                          }}
+                          onClick={() => onStageClick(stage.nodeId)}
+                          onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
+                          onMouseLeave={() => setHoveredStage(null)}
+                        >
+                          {/* Clean finish marker */}
+                          <div
+                            className="h-8 px-3 rounded-full bg-green-600 border-2 border-green-700 text-white font-semibold text-xs flex items-center justify-center shadow-sm"
+                          >
+                            Green Card
+                          </div>
+
+                          {/* Tooltip on hover */}
+                          {isHovered && (
+                            <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap z-40">
+                              <div className="font-semibold">Permanent Resident</div>
+                              <div className="text-gray-400 text-[10px]">No expiration</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={`${stage.nodeId}-${idx}`}
@@ -268,11 +277,10 @@ export default function TimelineChart({
                           ${colors.bg} ${colors.border} ${colors.text}
                           ${isHovered ? "ring-2 ring-offset-1 ring-blue-400 scale-105 z-30" : "z-10"}
                           ${isCurrentStatus ? "ring-2 ring-offset-1 ring-red-500" : ""}
-                          ${isFinalGC ? "bg-purple-500 border-purple-600" : ""}
                         `}
                         style={{
                           left: `${left}px`,
-                          width: isFinalGC ? "40px" : `${width}px`,
+                          width: `${width}px`,
                           height: TRACK_HEIGHT,
                           top: `${top}px`,
                         }}
@@ -336,60 +344,11 @@ export default function TimelineChart({
             <span className="text-sm text-gray-600">Entry Visa</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-purple-500" />
+            <div className="w-4 h-4 rounded-full bg-green-600" />
             <span className="text-sm text-gray-600">Green Card</span>
           </div>
         </div>
 
-        {/* Data freshness and note */}
-        <div className="mt-6 text-center">
-          {dataLastUpdated && (
-            <div className="text-xs text-gray-500 mb-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                Live data as of {new Date(dataLastUpdated).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-              {dynamicData.processingTimes.dol.perm.analystReview.currentlyProcessing && (
-                <span className="ml-3 text-gray-400">
-                  PERM: processing {dynamicData.processingTimes.dol.perm.analystReview.currentlyProcessing} cases
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Priority dates for Canadians (all other chargeability) */}
-          {dynamicData.priorityDates && (
-            <div className="text-xs text-gray-500 mb-2 flex items-center justify-center gap-4">
-              <span className="font-medium text-gray-600">Priority Dates:</span>
-              <span>EB-1: <span className="text-green-600 font-medium">{dynamicData.priorityDates.eb1.allOther}</span></span>
-              <span>EB-2: <span className="text-blue-600 font-medium">{dynamicData.priorityDates.eb2.allOther}</span></span>
-              <span>EB-3: <span className="text-amber-600 font-medium">{dynamicData.priorityDates.eb3.allOther}</span></span>
-            </div>
-          )}
-
-          {/* Data sources */}
-          {dynamicData.sources && (
-            <div className="text-[10px] text-gray-400 mb-2 flex items-center justify-center gap-3">
-              <span>Sources:</span>
-              <a href={dynamicData.sources.dol.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">DOL FLAG</a>
-              <a href={dynamicData.sources.uscis.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">USCIS Data</a>
-              <a href={dynamicData.sources.visaBulletin.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 underline">Visa Bulletin</a>
-            </div>
-          )}
-
-          {isLoadingTimes && (
-            <div className="text-xs text-gray-400 mb-2">
-              Loading latest processing times...
-            </div>
-          )}
-          <p className="text-xs text-gray-400">
-            Paths generated based on your situation. Click any stage for details.
-          </p>
-        </div>
       </div>
     </div>
   );

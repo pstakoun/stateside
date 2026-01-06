@@ -11,9 +11,24 @@
         "Intent to return home (non-immigrant intent)"
       ],
       "filings": [
-        { "form": "I-20", "name": "Certificate of Eligibility", "fee": 0, "filed_by": "School" },
-        { "form": "DS-160", "name": "Visa Application", "fee": 185, "filed_by": "You" },
-        { "form": "I-901", "name": "SEVIS Fee", "fee": 350, "filed_by": "You" }
+        {
+          "form": "I-20",
+          "name": "Certificate of Eligibility",
+          "fee": 0,
+          "filed_by": "School"
+        },
+        {
+          "form": "DS-160",
+          "name": "Visa Application",
+          "fee": 185,
+          "filed_by": "You"
+        },
+        {
+          "form": "I-901",
+          "name": "SEVIS Fee",
+          "fee": 350,
+          "filed_by": "You"
+        }
       ],
       "stats": {
         "approvalRate": 0.78,
@@ -39,7 +54,13 @@
         "Apply within 60 days of graduation"
       ],
       "filings": [
-        { "form": "I-765", "name": "Application for Employment Authorization", "fee": 260, "filed_by": "You", "processing": "3-5 months" }
+        {
+          "form": "I-765",
+          "name": "Application for Employment Authorization",
+          "fee": 260,
+          "filed_by": "You",
+          "processing": "3-5 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.95,
@@ -65,12 +86,31 @@
         "Relevant degree or experience for the profession"
       ],
       "filings": [
-        { "form": "I-129", "name": "Petition (if filing by mail)", "fee": 460, "filed_by": "Employer", "processing": "2-4 months" },
-        { "form": "Port of Entry", "name": "Apply at border (preferred)", "fee": 50, "filed_by": "You", "processing": "Same day" }
+        {
+          "form": "I-129",
+          "name": "Petition (if filing by mail)",
+          "fee": 460,
+          "filed_by": "Employer",
+          "processing": "2-4 months"
+        },
+        {
+          "form": "Port of Entry",
+          "name": "Apply at border (preferred)",
+          "fee": 50,
+          "filed_by": "You",
+          "processing": "Same day"
+        }
       ],
       "tnProfessions": [
-        "Accountant", "Architect", "Computer Systems Analyst", "Engineer", "Management Consultant",
-        "Scientific Technician", "Technical Publications Writer", "Graphic Designer", "Economist"
+        "Accountant",
+        "Architect",
+        "Computer Systems Analyst",
+        "Engineer",
+        "Management Consultant",
+        "Scientific Technician",
+        "Technical Publications Writer",
+        "Graphic Designer",
+        "Economist"
       ],
       "stats": {
         "approvalRate": 0.96,
@@ -96,10 +136,36 @@
         "Employer sponsorship and prevailing wage"
       ],
       "filings": [
-        { "form": "LCA", "name": "Labor Condition Application", "fee": 0, "filed_by": "Employer", "processing": "7 days" },
-        { "form": "I-129", "name": "H-1B Petition + ACWIA + Fraud fees", "fee": 2780, "filed_by": "Employer", "processing": "2-6 months" },
-        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" },
-        { "form": "Proclamation Fee", "name": "$100k fee (NEW petitions from outside US only)", "fee": 100000, "filed_by": "Employer", "processing": "N/A", "note": "EXEMPT: change of status, extensions, amendments" }
+        {
+          "form": "LCA",
+          "name": "Labor Condition Application",
+          "fee": 0,
+          "filed_by": "Employer",
+          "processing": "7 days"
+        },
+        {
+          "form": "I-129",
+          "name": "H-1B Petition + ACWIA + Fraud + Asylum fees",
+          "fee": 3380,
+          "filed_by": "Employer",
+          "processing": "2-6 months",
+          "note": "Includes $780 base + $1500 ACWIA + $500 fraud + $600 asylum"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing (optional)",
+          "fee": 2805,
+          "filed_by": "Employer",
+          "processing": "15 business days"
+        },
+        {
+          "form": "Proclamation Fee",
+          "name": "$100k fee (NEW petitions from outside US only)",
+          "fee": 100000,
+          "filed_by": "Employer",
+          "processing": "N/A",
+          "note": "EXEMPT: change of status, extensions, amendments"
+        }
       ],
       "stats": {
         "approvalRate": 0.85,
@@ -127,8 +193,21 @@
         "Employer or agent sponsor"
       ],
       "filings": [
-        { "form": "I-129", "name": "O-1 Petition", "fee": 1055, "filed_by": "Employer/Agent", "processing": "2-4 months" },
-        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
+        {
+          "form": "I-129",
+          "name": "O-1 Petition + Asylum Fee",
+          "fee": 1655,
+          "filed_by": "Employer/Agent",
+          "processing": "2-4 months",
+          "note": "Includes $1055 base + $600 asylum fee"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing (optional)",
+          "fee": 2805,
+          "filed_by": "Employer",
+          "processing": "15 business days"
+        }
       ],
       "evidenceCategories": [
         "Nationally/internationally recognized awards",
@@ -165,13 +244,32 @@
         "US office must exist or be established"
       ],
       "filings": [
-        { "form": "I-129", "name": "L-1 Petition", "fee": 1385, "filed_by": "Employer", "processing": "3-6 months" },
-        { "form": "I-129S", "name": "Blanket L Petition (if applicable)", "fee": 1385, "filed_by": "Employer", "processing": "Same day at consulate" },
-        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
+        {
+          "form": "I-129",
+          "name": "L-1 Petition + Fraud + Asylum fees",
+          "fee": 2485,
+          "filed_by": "Employer",
+          "processing": "3-6 months",
+          "note": "Includes $1385 base + $500 fraud + $600 asylum"
+        },
+        {
+          "form": "I-129S",
+          "name": "Blanket L Petition (if applicable)",
+          "fee": 1385,
+          "filed_by": "Employer",
+          "processing": "Same day at consulate"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing (optional)",
+          "fee": 2805,
+          "filed_by": "Employer",
+          "processing": "15 business days"
+        }
       ],
       "stats": {
         "approvalRate": 0.82,
-        "rfeRate": 0.40,
+        "rfeRate": 0.4,
         "annualVolume": 45000,
         "source": "USCIS FY2023"
       },
@@ -193,8 +291,21 @@
         "US office must exist or be established"
       ],
       "filings": [
-        { "form": "I-129", "name": "L-1B Petition", "fee": 1385, "filed_by": "Employer", "processing": "3-6 months" },
-        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
+        {
+          "form": "I-129",
+          "name": "L-1B Petition + Fraud + Asylum fees",
+          "fee": 2485,
+          "filed_by": "Employer",
+          "processing": "3-6 months",
+          "note": "Includes $1385 base + $500 fraud + $600 asylum"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing (optional)",
+          "fee": 2805,
+          "filed_by": "Employer",
+          "processing": "15 business days"
+        }
       ],
       "stats": {
         "approvalRate": 0.72,
@@ -221,7 +332,13 @@
         "Education/experience requirements"
       ],
       "filings": [
-        { "form": "ETA-9141", "name": "Prevailing Wage Request", "fee": 0, "filed_by": "Employer", "processing": "5-7 months" }
+        {
+          "form": "ETA-9141",
+          "name": "Prevailing Wage Request",
+          "fee": 0,
+          "filed_by": "Employer",
+          "processing": "5-7 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.99,
@@ -247,7 +364,13 @@
         "3 additional recruitment steps"
       ],
       "filings": [
-        { "form": "Job Ads", "name": "Newspaper, website, job boards", "fee": "3000-8000", "filed_by": "Employer", "processing": "2-3 months" }
+        {
+          "form": "Job Ads",
+          "name": "Newspaper, website, job boards",
+          "fee": "3000-8000",
+          "filed_by": "Employer",
+          "processing": "2-3 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.95,
@@ -272,7 +395,13 @@
         "Employer ability to pay offered wage"
       ],
       "filings": [
-        { "form": "ETA-9089", "name": "PERM Application", "fee": 0, "filed_by": "Employer", "processing": "15-19 months" }
+        {
+          "form": "ETA-9089",
+          "name": "PERM Application",
+          "fee": 0,
+          "filed_by": "Employer",
+          "processing": "15-19 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.89,
@@ -297,9 +426,27 @@
         "Beneficiary qualifications"
       ],
       "filings": [
-        { "form": "I-140", "name": "Immigrant Petition for Alien Workers", "fee": 715, "filed_by": "Employer", "processing": "6-9 months" },
-        { "form": "Asylum Fee", "name": "Asylum Program Fee", "fee": 600, "filed_by": "Employer", "processing": "N/A" },
-        { "form": "I-907", "name": "Premium Processing (recommended)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
+        {
+          "form": "I-140",
+          "name": "Immigrant Petition for Alien Workers",
+          "fee": 715,
+          "filed_by": "Employer",
+          "processing": "6-9 months"
+        },
+        {
+          "form": "Asylum Fee",
+          "name": "Asylum Program Fee",
+          "fee": 600,
+          "filed_by": "Employer",
+          "processing": "N/A"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing (recommended)",
+          "fee": 2805,
+          "filed_by": "Employer",
+          "processing": "15 business days"
+        }
       ],
       "stats": {
         "approvalRate": 0.95,
@@ -326,11 +473,42 @@
         "Admissible to the US"
       ],
       "filings": [
-        { "form": "I-485", "name": "Adjustment of Status Application", "fee": 1440, "filed_by": "You", "processing": "10-18 months" },
-        { "form": "Biometrics", "name": "Biometric Services Fee", "fee": 85, "filed_by": "You", "processing": "N/A" },
-        { "form": "I-765", "name": "EAD (work permit)", "fee": 260, "filed_by": "You", "processing": "3-5 months", "note": "Now separate fee" },
-        { "form": "I-131", "name": "Advance Parole (travel permit)", "fee": 0, "filed_by": "You", "processing": "3-5 months", "note": "Included with I-485" },
-        { "form": "I-693", "name": "Medical Examination", "fee": "300-500", "filed_by": "You" }
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status Application",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "10-18 months"
+        },
+        {
+          "form": "Biometrics",
+          "name": "Biometric Services Fee",
+          "fee": 85,
+          "filed_by": "You",
+          "processing": "N/A"
+        },
+        {
+          "form": "I-765",
+          "name": "EAD (work permit)",
+          "fee": 260,
+          "filed_by": "You",
+          "processing": "3-5 months",
+          "note": "Now separate fee"
+        },
+        {
+          "form": "I-131",
+          "name": "Advance Parole (travel permit)",
+          "fee": 0,
+          "filed_by": "You",
+          "processing": "3-5 months",
+          "note": "Included with I-485"
+        },
+        {
+          "form": "I-693",
+          "name": "Medical Examination",
+          "fee": "300-500",
+          "filed_by": "You"
+        }
       ],
       "stats": {
         "approvalRate": 0.98,
@@ -356,8 +534,20 @@
         "EB-1C: Multinational manager/executive (employer petition)"
       ],
       "filings": [
-        { "form": "I-140", "name": "Immigrant Petition", "fee": 700, "filed_by": "You (EB-1A) or Employer", "processing": "6-12 months" },
-        { "form": "I-907", "name": "Premium Processing", "fee": 2805, "processing": "15 business days" }
+        {
+          "form": "I-140",
+          "name": "Immigrant Petition",
+          "fee": 715,
+          "filed_by": "You (EB-1A) or Employer",
+          "processing": "6-12 months",
+          "note": "Employer filings add $600 asylum fee"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing",
+          "fee": 2805,
+          "processing": "15 business days"
+        }
       ],
       "stats": {
         "approvalRate": 0.92,
@@ -384,9 +574,27 @@
         "PERM labor certification (unless NIW)"
       ],
       "filings": [
-        { "form": "PERM", "name": "Labor Certification", "fee": "5000-10000", "filed_by": "Employer", "processing": "15-19 months" },
-        { "form": "I-140", "name": "Immigrant Petition", "fee": 715, "filed_by": "Employer", "processing": "6-9 months" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "10-18 months" }
+        {
+          "form": "PERM",
+          "name": "Labor Certification",
+          "fee": "5000-10000",
+          "filed_by": "Employer",
+          "processing": "15-19 months"
+        },
+        {
+          "form": "I-140",
+          "name": "Immigrant Petition",
+          "fee": 715,
+          "filed_by": "Employer",
+          "processing": "6-9 months"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "10-18 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.95,
@@ -413,13 +621,30 @@
         "On balance, beneficial to waive job offer requirement"
       ],
       "filings": [
-        { "form": "I-140", "name": "Immigrant Petition (self-filed)", "fee": 715, "filed_by": "You", "processing": "6-9 months" },
-        { "form": "I-907", "name": "Premium Processing", "fee": 2805, "processing": "45 business days (~9 weeks)" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "10-18 months" }
+        {
+          "form": "I-140",
+          "name": "Immigrant Petition (self-filed)",
+          "fee": 715,
+          "filed_by": "You",
+          "processing": "6-9 months"
+        },
+        {
+          "form": "I-907",
+          "name": "Premium Processing",
+          "fee": 2805,
+          "processing": "45 business days (~9 weeks)"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "10-18 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.87,
-        "rfeRate": 0.30,
+        "rfeRate": 0.3,
         "annualVolume": 15000,
         "source": "USCIS FY2023"
       },
@@ -442,9 +667,27 @@
         "Job offer from US employer"
       ],
       "filings": [
-        { "form": "PERM", "name": "Labor Certification", "fee": "5000-10000", "filed_by": "Employer", "processing": "15-19 months" },
-        { "form": "I-140", "name": "Immigrant Petition", "fee": 715, "filed_by": "Employer", "processing": "6-9 months" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "10-18 months" }
+        {
+          "form": "PERM",
+          "name": "Labor Certification",
+          "fee": "5000-10000",
+          "filed_by": "Employer",
+          "processing": "15-19 months"
+        },
+        {
+          "form": "I-140",
+          "name": "Immigrant Petition",
+          "fee": 715,
+          "filed_by": "Employer",
+          "processing": "6-9 months"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "10-18 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.94,
@@ -471,8 +714,18 @@
         "Business must not be marginal (generate more than minimal living)"
       ],
       "filings": [
-        { "form": "DS-160", "name": "Nonimmigrant Visa Application", "fee": 205, "filed_by": "You" },
-        { "form": "DS-156E", "name": "Treaty Trader/Investor Supplement", "fee": 0, "filed_by": "You" }
+        {
+          "form": "DS-160",
+          "name": "Nonimmigrant Visa Application",
+          "fee": 205,
+          "filed_by": "You"
+        },
+        {
+          "form": "DS-156E",
+          "name": "Treaty Trader/Investor Supplement",
+          "fee": 0,
+          "filed_by": "You"
+        }
       ],
       "stats": {
         "approvalRate": 0.88,
@@ -500,14 +753,37 @@
         "Prove lawful source of funds"
       ],
       "filings": [
-        { "form": "I-526E", "name": "Immigrant Petition for Regional Center", "fee": 11160, "filed_by": "You", "processing": "24-36 months" },
-        { "form": "I-526", "name": "Immigrant Petition (Direct)", "fee": 11160, "filed_by": "You", "processing": "36-48 months" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "10-18 months" },
-        { "form": "I-829", "name": "Remove Conditions (after 2 years)", "fee": 3035, "filed_by": "You" }
+        {
+          "form": "I-526E",
+          "name": "Immigrant Petition for Regional Center",
+          "fee": 11160,
+          "filed_by": "You",
+          "processing": "24-36 months"
+        },
+        {
+          "form": "I-526",
+          "name": "Immigrant Petition (Direct)",
+          "fee": 11160,
+          "filed_by": "You",
+          "processing": "36-48 months"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "10-18 months"
+        },
+        {
+          "form": "I-829",
+          "name": "Remove Conditions (after 2 years)",
+          "fee": 3035,
+          "filed_by": "You"
+        }
       ],
       "stats": {
         "approvalRate": 0.93,
-        "rfeRate": 0.20,
+        "rfeRate": 0.2,
         "annualVolume": 10000,
         "source": "USCIS FY2023"
       },
@@ -529,10 +805,33 @@
         "Spouse petitions with I-130"
       ],
       "filings": [
-        { "form": "I-130", "name": "Petition for Alien Relative", "fee": 625, "filed_by": "US Spouse", "processing": "8-14 months" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "8-14 months" },
-        { "form": "I-864", "name": "Affidavit of Support", "fee": 0, "filed_by": "US Spouse" },
-        { "form": "I-751", "name": "Remove Conditions (if married < 2yr)", "fee": 760, "filed_by": "Both", "processing": "12-24 months" }
+        {
+          "form": "I-130",
+          "name": "Petition for Alien Relative",
+          "fee": 625,
+          "filed_by": "US Spouse",
+          "processing": "8-14 months"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment of Status",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "8-14 months"
+        },
+        {
+          "form": "I-864",
+          "name": "Affidavit of Support",
+          "fee": 0,
+          "filed_by": "US Spouse"
+        },
+        {
+          "form": "I-751",
+          "name": "Remove Conditions (if married < 2yr)",
+          "fee": 760,
+          "filed_by": "Both",
+          "processing": "12-24 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.97,
@@ -559,9 +858,26 @@
         "Intend to marry within 90 days of entry"
       ],
       "filings": [
-        { "form": "I-129F", "name": "Petition for Fiance(e)", "fee": 675, "filed_by": "US Fiance", "processing": "8-14 months" },
-        { "form": "DS-160", "name": "Visa Application", "fee": 265, "filed_by": "You" },
-        { "form": "I-485", "name": "Adjustment after marriage", "fee": 1440, "filed_by": "You", "processing": "8-14 months" }
+        {
+          "form": "I-129F",
+          "name": "Petition for Fiance(e)",
+          "fee": 675,
+          "filed_by": "US Fiance",
+          "processing": "8-14 months"
+        },
+        {
+          "form": "DS-160",
+          "name": "Visa Application",
+          "fee": 265,
+          "filed_by": "You"
+        },
+        {
+          "form": "I-485",
+          "name": "Adjustment after marriage",
+          "fee": 1440,
+          "filed_by": "You",
+          "processing": "8-14 months"
+        }
       ],
       "stats": {
         "approvalRate": 0.83,
@@ -588,8 +904,18 @@
         "No extended absences (6+ months)"
       ],
       "filings": [
-        { "form": "I-90", "name": "Green Card Renewal (every 10 years)", "fee": 540, "filed_by": "You" },
-        { "form": "I-131", "name": "Re-entry Permit (if traveling 1+ year)", "fee": 630, "filed_by": "You" }
+        {
+          "form": "I-90",
+          "name": "Green Card Renewal (every 10 years)",
+          "fee": 540,
+          "filed_by": "You"
+        },
+        {
+          "form": "I-131",
+          "name": "Re-entry Permit (if traveling 1+ year)",
+          "fee": 630,
+          "filed_by": "You"
+        }
       ],
       "stats": {
         "approvalRate": 0.98,
@@ -604,270 +930,6 @@
       ]
     }
   },
-  "paths": [
-    {
-      "id": "student_masters_eb2",
-      "name": "Student → Master's → EB-2",
-      "emoji": "🎓",
-      "description": "Master's degree qualifies for EB-2. Start PERM on day 1 of OPT - runs in parallel with work.",
-      "totalYears": { "min": 3.5, "max": 5.5 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "stemBenefit": true
-      },
-      "stages": [
-        { "nodeId": "f1", "durationYears": { "min": 1.5, "max": 2, "display": "1.5-2 yr" }, "track": "status", "startYear": 0 },
-        { "nodeId": "opt", "durationYears": { "min": 1, "max": 1.5, "display": "1-1.5 yr" }, "track": "status", "startYear": 1.5 },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 1.5, "note": "Starts day 1 of OPT" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 2.5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 2.5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 3.5 }
-      ]
-    },
-    {
-      "id": "student_bachelors_eb3",
-      "name": "Student → Bachelor's → EB-3",
-      "emoji": "📚",
-      "description": "Bachelor's qualifies for EB-3. Start PERM on day 1 of OPT. STEM OPT gives 3 years runway.",
-      "totalYears": { "min": 5.5, "max": 7.5 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "stemBenefit": true
-      },
-      "stages": [
-        { "nodeId": "f1", "durationYears": { "min": 4, "max": 4, "display": "4 yr" }, "track": "status", "startYear": 0 },
-        { "nodeId": "opt", "durationYears": { "min": 1, "max": 1.5, "display": "1-1.5 yr" }, "track": "status", "startYear": 4 },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 4, "note": "Starts day 1 of OPT" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 6 }
-      ]
-    },
-    {
-      "id": "tn_eb2_direct",
-      "name": "TN → EB-2 (Direct)",
-      "emoji": "🍁",
-      "description": "No H-1B needed. Wait 6mo on TN, then start PERM. File I-140+I-485 concurrent when PERM done.",
-      "totalYears": { "min": 2, "max": 3.5 },
-      "eligibility": {
-        "minEducation": "masters",
-        "minExperienceForBachelors": "gt5",
-        "validStartStatuses": ["canada", "tn", "h1b"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false
-      },
-      "stages": [
-        { "nodeId": "tn", "durationYears": { "min": 2, "max": 3, "display": "2-3 yr" }, "track": "status", "startYear": 0, "note": "Renewable 3yr increments" },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 0.5, "note": "Start after 6mo on TN" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 1.5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1, "display": "6-12 mo" }, "track": "gc", "startYear": 1.5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 2.5 }
-      ]
-    },
-    {
-      "id": "tn_eb3_direct",
-      "name": "TN → EB-3 (Direct)",
-      "emoji": "🍁",
-      "description": "No H-1B needed. Wait 6mo on TN, then start PERM. File I-140+I-485 concurrent when PERM done.",
-      "totalYears": { "min": 2, "max": 3.5 },
-      "eligibility": {
-        "minEducation": "bachelors",
-        "validStartStatuses": ["canada", "tn", "h1b"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false
-      },
-      "stages": [
-        { "nodeId": "tn", "durationYears": { "min": 2, "max": 3, "display": "2-3 yr" }, "track": "status", "startYear": 0, "note": "Renewable 3yr increments" },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 0.5, "note": "Start after 6mo on TN" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 1.5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1, "display": "6-12 mo" }, "track": "gc", "startYear": 1.5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 2.5 }
-      ]
-    },
-    {
-      "id": "tn_eb2niw",
-      "name": "EB-2 NIW (Self-Petition)",
-      "emoji": "🌟",
-      "description": "No employer needed, no PERM. Self-file I-140 NIW + I-485 concurrent. Works from any status.",
-      "totalYears": { "min": 1, "max": 2.5 },
-      "eligibility": {
-        "minEducation": "masters",
-        "minExperienceForBachelors": "gt5",
-        "validStartStatuses": ["canada", "tn", "h1b", "opt", "f1", "other"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false
-      },
-      "stages": [
-        { "nodeId": "eb2niw", "durationYears": { "min": 0.5, "max": 1, "display": "6-12 mo" }, "track": "gc", "startYear": 0, "note": "I-140 NIW (45 days w/ premium)" },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 0, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 1 }
-      ]
-    },
-    {
-      "id": "o1_eb1a",
-      "name": "EB-1A (Self-Petition)",
-      "emoji": "⭐",
-      "description": "Extraordinary ability. No employer, no PERM. Self-file I-140 + I-485 concurrent. Fastest if you qualify.",
-      "totalYears": { "min": 0.5, "max": 2 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada", "tn", "h1b", "opt", "other"],
-        "requiresExtraordinary": true,
-        "requiresExecutive": false
-      },
-      "stages": [
-        { "nodeId": "eb1", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 0, "note": "I-140 EB-1A (15 days w/ premium)" },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 0, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 0.5 }
-      ]
-    },
-    {
-      "id": "l1a_eb1c",
-      "name": "L-1A → EB-1C (Executive)",
-      "emoji": "💼",
-      "description": "Transfer as executive/manager, then EB-1C green card. No PERM required!",
-      "totalYears": { "min": 2, "max": 4 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada", "other"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": true
-      },
-      "stages": [
-        { "nodeId": "l1a", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "status", "startYear": 0, "note": "Establish US role" },
-        { "nodeId": "eb1", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 1, "note": "EB-1C petition" },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 1, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 2 }
-      ]
-    },
-    {
-      "id": "opt_h1b_eb2",
-      "name": "OPT → H-1B → EB-2",
-      "emoji": "🎯",
-      "description": "H-1B lottery route. Start PERM on day 1 of OPT (runs parallel). H-1B provides backup if PERM slow.",
-      "totalYears": { "min": 2, "max": 4 },
-      "eligibility": {
-        "minEducation": "masters",
-        "minExperienceForBachelors": "gt5",
-        "validStartStatuses": ["opt", "f1"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "stemBenefit": true
-      },
-      "stages": [
-        { "nodeId": "opt", "durationYears": { "min": 1, "max": 1.5, "display": "1-1.5 yr" }, "track": "status", "startYear": 0 },
-        { "nodeId": "h1b", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "status", "startYear": 1, "note": "If lottery selected" },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 0, "note": "Starts day 1 of OPT" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 1.5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 1.5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 2.5 }
-      ]
-    },
-    {
-      "id": "opt_h1b_eb3",
-      "name": "OPT → H-1B → EB-3",
-      "emoji": "🎯",
-      "description": "Standard path for Bachelor's holders. Start PERM on OPT, H-1B lottery as backup status while PERM processes.",
-      "totalYears": { "min": 2, "max": 4 },
-      "eligibility": {
-        "minEducation": "bachelors",
-        "validStartStatuses": ["opt", "f1"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "stemBenefit": true
-      },
-      "stages": [
-        { "nodeId": "opt", "durationYears": { "min": 1, "max": 1.5, "display": "1-1.5 yr" }, "track": "status", "startYear": 0, "note": "STEM: up to 3 years" },
-        { "nodeId": "h1b", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "status", "startYear": 1, "note": "If lottery selected" },
-        { "nodeId": "perm", "durationYears": { "min": 1, "max": 1.5, "display": "12-18 mo" }, "track": "gc", "startYear": 0, "note": "Starts day 1 of OPT" },
-        { "nodeId": "i140", "durationYears": { "min": 0.04, "max": 0.5, "display": "15d-6mo" }, "track": "gc", "startYear": 1.5 },
-        { "nodeId": "i485", "durationYears": { "min": 0.5, "max": 1.5, "display": "6-18 mo" }, "track": "gc", "startYear": 1.5, "note": "Concurrent with I-140" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 2.5 }
-      ]
-    },
-    {
-      "id": "marriage_us_citizen",
-      "name": "Marriage to US Citizen",
-      "emoji": "💍",
-      "description": "Fastest green card path. Marry US citizen, file I-130/I-485 concurrently. ~8-14 months total.",
-      "totalYears": { "min": 0.7, "max": 1.5 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada", "tn", "h1b", "opt", "f1", "other"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "requiresMarriage": true
-      },
-      "stages": [
-        { "nodeId": "marriage", "durationYears": { "min": 0.7, "max": 1.2, "display": "8-14 mo" }, "track": "gc", "startYear": 0, "note": "I-130 + I-485 concurrent" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 0.7 }
-      ]
-    },
-    {
-      "id": "k1_fiance",
-      "name": "K-1 Fiance → Marriage",
-      "emoji": "💒",
-      "description": "Engaged to US citizen? K-1 visa to enter, marry within 90 days, then green card.",
-      "totalYears": { "min": 1.5, "max": 3 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "requiresMarriage": true
-      },
-      "stages": [
-        { "nodeId": "k1", "durationYears": { "min": 0.7, "max": 1.2, "display": "8-14 mo" }, "track": "status", "startYear": 0, "note": "I-129F petition" },
-        { "nodeId": "marriage", "durationYears": { "min": 0.7, "max": 1.5, "display": "8-18 mo" }, "track": "gc", "startYear": 0.7, "note": "Marry + I-485" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 1.5 }
-      ]
-    },
-    {
-      "id": "eb5_investor",
-      "name": "EB-5 Investor",
-      "emoji": "💰",
-      "description": "Green card through $800k+ investment. No employer needed, but long processing. Self-petition.",
-      "totalYears": { "min": 3, "max": 5 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada", "tn", "h1b", "opt", "f1", "other"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "requiresInvestment": true
-      },
-      "stages": [
-        { "nodeId": "eb5", "durationYears": { "min": 2, "max": 3, "display": "2-3 yr" }, "track": "gc", "startYear": 0, "note": "I-526E petition" },
-        { "nodeId": "i485", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "gc", "startYear": 2, "note": "Conditional GC" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 3 }
-      ]
-    },
-    {
-      "id": "e2_to_eb5",
-      "name": "E-2 → EB-5 Investor",
-      "emoji": "📈",
-      "description": "Start with E-2 treaty investor visa, grow business, then upgrade to EB-5 for green card.",
-      "totalYears": { "min": 4, "max": 7 },
-      "eligibility": {
-        "minEducation": null,
-        "validStartStatuses": ["canada"],
-        "requiresExtraordinary": false,
-        "requiresExecutive": false,
-        "requiresInvestment": true
-      },
-      "stages": [
-        { "nodeId": "e2", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "status", "startYear": 0, "note": "Start/buy US business" },
-        { "nodeId": "eb5", "durationYears": { "min": 2, "max": 3, "display": "2-3 yr" }, "track": "gc", "startYear": 1, "note": "Scale to EB-5 level" },
-        { "nodeId": "i485", "durationYears": { "min": 1, "max": 2, "display": "1-2 yr" }, "track": "gc", "startYear": 3, "note": "Conditional GC" },
-        { "nodeId": "gc", "durationYears": { "min": 0, "max": 0, "display": "Done!" }, "track": "gc", "startYear": 4 }
-      ]
-    }
-  ],
   "meta": {
     "lastUpdated": "2026-01",
     "sources": [

@@ -190,22 +190,6 @@ export default function PathDetail({ nodeId, onClose }: PathDetailProps) {
           </div>
         )}
 
-        
-        {/* Tips */}
-        {"tips" in node && (node.tips as string[])?.length > 0 && (
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-2">Tips</h3>
-            <ul className="space-y-2">
-              {(node.tips as string[]).map((tip, i) => (
-                <li key={i} className="flex items-start gap-2 text-gray-700 text-sm">
-                  <span className="text-gray-400">•</span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Evidence Categories (for O-1) */}
         {"evidenceCategories" in node && (
           <div>
@@ -226,13 +210,6 @@ export default function PathDetail({ nodeId, onClose }: PathDetailProps) {
         )}
       </div>
 
-      {/* Footer */}
-      <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
-        <p className="text-xs text-gray-500">
-          Processing times updated live from official sources. Always consult an immigration attorney for your
-          specific case.
-        </p>
-      </div>
     </div>
   );
 }
