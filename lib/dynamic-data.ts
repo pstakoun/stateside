@@ -79,20 +79,23 @@ async function fetchDOLData(): Promise<{
 
     const html = await response.text();
 
-    // Parse PWD (H-1B OEWS)
+    // Parse PWD (H-1B OEWS) - look for H-1B row in PWD table
+    // HTML structure: <td headers="a">H-1B</td><td headers="b">July 2025</td>
     let pwdDate = "July 2025";
-    const pwdMatch = html.match(/H-1B[^]*?OEWS[^]*?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i);
-    if (pwdMatch) pwdDate = `${pwdMatch[1]} ${pwdMatch[2]}`;
+    const pwdMatch = html.match(/>H-1B<\/td>\s*<td[^>]*>((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i);
+    if (pwdMatch) pwdDate = pwdMatch[1];
 
     // Parse PERM Analyst Review
+    // HTML structure: <td headers="a">Analyst Review</td><td...>August 2024</td>
     let permDate = "August 2024";
-    const permMatch = html.match(/Analyst\s+Review[^]*?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i);
-    if (permMatch) permDate = `${permMatch[1]} ${permMatch[2]}`;
+    const permMatch = html.match(/>Analyst Review<\/td>\s*<td[^>]*>((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i);
+    if (permMatch) permDate = permMatch[1];
 
     // Parse PERM Audit Review
+    // HTML structure: <td headers="a">Audit Review</td><td...>December 2024</td>
     let auditDate = "December 2024";
-    const auditMatch = html.match(/Audit\s+Review[^]*?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i);
-    if (auditMatch) auditDate = `${auditMatch[1]} ${auditMatch[2]}`;
+    const auditMatch = html.match(/>Audit Review<\/td>\s*<td[^>]*>((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i)
+    if (auditMatch) auditDate = auditMatch[1];
 
     return {
       pwd: { months: parseMonthsFromDate(pwdDate), currentlyProcessing: pwdDate },
@@ -111,6 +114,13 @@ async function fetchDOLData(): Promise<{
 
 // Fetch Visa Bulletin priority dates
 async function fetchVisaBulletin(): Promise<DynamicImmigrationData["priorityDates"]> {
+  // Default values based on Jan 2026 bulletin
+  const defaults = {
+    eb1: { allOther: "Current", china: "Feb 2023", india: "Feb 2023" },
+    eb2: { allOther: "Apr 2024", china: "Sep 2021", india: "Jul 2013" },
+    eb3: { allOther: "Apr 2023", china: "May 2021", india: "Nov 2013" },
+  };
+
   try {
     // Get the current month's bulletin
     const now = new Date();
@@ -129,39 +139,52 @@ async function fetchVisaBulletin(): Promise<DynamicImmigrationData["priorityDate
 
     const html = await response.text();
 
-    // Parse EB categories - look for employment-based table
-    // Format: dates like "01FEB23" or "C" for current
+    // Parse date from format "01FEB23" or "C" for current
     const parseDate = (text: string): string => {
-      if (text.toUpperCase() === "C" || text.toLowerCase().includes("current")) {
-        return "Current";
-      }
-      // Parse "01FEB23" format
-      const match = text.match(/(\d{2})([A-Z]{3})(\d{2})/i);
+      const trimmed = text.trim();
+      if (trimmed.toUpperCase() === "C") return "Current";
+      // Parse "01FEB23" or "15JUL13" format
+      const match = trimmed.match(/(\d{2})([A-Z]{3})(\d{2})/i);
       if (match) {
         const months: Record<string, string> = {
           JAN: "Jan", FEB: "Feb", MAR: "Mar", APR: "Apr",
           MAY: "May", JUN: "Jun", JUL: "Jul", AUG: "Aug",
           SEP: "Sep", OCT: "Oct", NOV: "Nov", DEC: "Dec"
         };
-        const [, day, mon, yr] = match;
+        const [, , mon, yr] = match;
         return `${months[mon.toUpperCase()] || mon} 20${yr}`;
       }
-      return text;
+      return trimmed;
     };
 
-    // Default values based on recent bulletin
+    // Extract table rows for EB categories
+    // Pattern: <td>1st</td><td>C</td><td>01FEB23</td><td>01FEB23</td>...
+    // Columns: Category, All Chargeability, China, India, Mexico, Philippines
+
+    const eb1Match = html.match(/<td>1st<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
+    const eb2Match = html.match(/<td>2nd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
+    const eb3Match = html.match(/<td>3rd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
+
     return {
-      eb1: { allOther: "Current", china: "Feb 2023", india: "Feb 2023" },
-      eb2: { allOther: "Apr 2024", china: "Sep 2021", india: "Jul 2013" },
-      eb3: { allOther: "Apr 2023", china: "May 2021", india: "Nov 2013" },
+      eb1: {
+        allOther: eb1Match ? parseDate(eb1Match[1]) : defaults.eb1.allOther,
+        china: eb1Match ? parseDate(eb1Match[2]) : defaults.eb1.china,
+        india: eb1Match ? parseDate(eb1Match[3]) : defaults.eb1.india,
+      },
+      eb2: {
+        allOther: eb2Match ? parseDate(eb2Match[1]) : defaults.eb2.allOther,
+        china: eb2Match ? parseDate(eb2Match[2]) : defaults.eb2.china,
+        india: eb2Match ? parseDate(eb2Match[3]) : defaults.eb2.india,
+      },
+      eb3: {
+        allOther: eb3Match ? parseDate(eb3Match[1]) : defaults.eb3.allOther,
+        china: eb3Match ? parseDate(eb3Match[2]) : defaults.eb3.china,
+        india: eb3Match ? parseDate(eb3Match[3]) : defaults.eb3.india,
+      },
     };
   } catch (error) {
     console.error("Visa Bulletin fetch error:", error);
-    return {
-      eb1: { allOther: "Current", china: "Feb 2023", india: "Feb 2023" },
-      eb2: { allOther: "Apr 2024", china: "Sep 2021", india: "Jul 2013" },
-      eb3: { allOther: "Apr 2023", china: "May 2021", india: "Nov 2013" },
-    };
+    return defaults;
   }
 }
 
