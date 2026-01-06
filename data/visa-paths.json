@@ -89,7 +89,7 @@
       "name": "H-1B",
       "fullName": "Specialty Occupation",
       "category": "work",
-      "description": "Most common work visa for professionals. Subject to annual lottery (~25% selection) unless cap-exempt.",
+      "description": "Specialty occupation work visa. Subject to annual lottery (~25% selection) unless cap-exempt. New $100k fee applies to NEW petitions from outside US (change of status from OPT/TN is EXEMPT).",
       "requirements": [
         "Bachelor's degree or equivalent in specialty",
         "Job in specialty occupation requiring the degree",
@@ -97,20 +97,22 @@
       ],
       "filings": [
         { "form": "LCA", "name": "Labor Condition Application", "fee": 0, "filed_by": "Employer", "processing": "7 days" },
-        { "form": "I-129", "name": "H-1B Petition", "fee": 1710, "filed_by": "Employer", "processing": "2-8 months" },
-        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
+        { "form": "I-129", "name": "H-1B Petition + ACWIA + Fraud fees", "fee": 2780, "filed_by": "Employer", "processing": "2-6 months" },
+        { "form": "I-907", "name": "Premium Processing (optional)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" },
+        { "form": "Proclamation Fee", "name": "$100k fee (NEW petitions from outside US only)", "fee": 100000, "filed_by": "Employer", "processing": "N/A", "note": "EXEMPT: change of status, extensions, amendments" }
       ],
       "stats": {
         "approvalRate": 0.85,
         "rfeRate": 0.35,
         "annualVolume": 400000,
         "annualCap": 85000,
-        "source": "USCIS FY2024"
+        "source": "USCIS FY2025"
       },
       "tips": [
         "Register in March for April lottery (if subject to cap)",
-        "Can start green card process immediately after approval",
-        "6-year limit, but extendable if I-140 approved or PERM pending >365 days"
+        "IMPORTANT: Change of status from OPT/F-1/TN is EXEMPT from $100k fee",
+        "6-year limit, but extendable if I-140 approved or PERM pending >365 days",
+        "Canadians: Consider TN first, then change to H-1B to avoid $100k fee"
       ]
     },
     "o1": {
@@ -295,7 +297,8 @@
         "Beneficiary qualifications"
       ],
       "filings": [
-        { "form": "I-140", "name": "Immigrant Petition for Alien Workers", "fee": 700, "filed_by": "Employer", "processing": "6-12 months" },
+        { "form": "I-140", "name": "Immigrant Petition for Alien Workers", "fee": 715, "filed_by": "Employer", "processing": "6-9 months" },
+        { "form": "Asylum Fee", "name": "Asylum Program Fee", "fee": 600, "filed_by": "Employer", "processing": "N/A" },
         { "form": "I-907", "name": "Premium Processing (recommended)", "fee": 2805, "filed_by": "Employer", "processing": "15 business days" }
       ],
       "stats": {
@@ -323,10 +326,11 @@
         "Admissible to the US"
       ],
       "filings": [
-        { "form": "I-485", "name": "Adjustment of Status Application", "fee": 1225, "filed_by": "You", "processing": "10-18 months" },
-        { "form": "I-765", "name": "EAD (work permit)", "fee": 0, "filed_by": "You", "processing": "3-6 months", "note": "Included with I-485" },
-        { "form": "I-131", "name": "Advance Parole (travel permit)", "fee": 0, "filed_by": "You", "processing": "3-6 months", "note": "Included with I-485" },
-        { "form": "I-693", "name": "Medical Examination", "fee": "200-500", "filed_by": "You" }
+        { "form": "I-485", "name": "Adjustment of Status Application", "fee": 1440, "filed_by": "You", "processing": "10-18 months" },
+        { "form": "Biometrics", "name": "Biometric Services Fee", "fee": 85, "filed_by": "You", "processing": "N/A" },
+        { "form": "I-765", "name": "EAD (work permit)", "fee": 260, "filed_by": "You", "processing": "3-5 months", "note": "Now separate fee" },
+        { "form": "I-131", "name": "Advance Parole (travel permit)", "fee": 0, "filed_by": "You", "processing": "3-5 months", "note": "Included with I-485" },
+        { "form": "I-693", "name": "Medical Examination", "fee": "300-500", "filed_by": "You" }
       ],
       "stats": {
         "approvalRate": 0.98,
@@ -409,9 +413,9 @@
         "On balance, beneficial to waive job offer requirement"
       ],
       "filings": [
-        { "form": "I-140", "name": "Immigrant Petition (self-filed)", "fee": 700, "filed_by": "You", "processing": "6-12 months" },
-        { "form": "I-907", "name": "Premium Processing", "fee": 2805, "processing": "45 days" },
-        { "form": "I-485", "name": "Adjustment of Status", "fee": 1225, "filed_by": "You", "processing": "12-24 months" }
+        { "form": "I-140", "name": "Immigrant Petition (self-filed)", "fee": 715, "filed_by": "You", "processing": "6-9 months" },
+        { "form": "I-907", "name": "Premium Processing", "fee": 2805, "processing": "45 business days (~9 weeks)" },
+        { "form": "I-485", "name": "Adjustment of Status", "fee": 1440, "filed_by": "You", "processing": "10-18 months" }
       ],
       "stats": {
         "approvalRate": 0.87,
@@ -865,7 +869,7 @@
     }
   ],
   "meta": {
-    "lastUpdated": "2024-01",
+    "lastUpdated": "2026-01",
     "sources": [
       "USCIS Immigration Statistics",
       "Department of State Visa Bulletin",

@@ -96,7 +96,7 @@ export default function FilterPanel({
           <div className="h-8 w-px bg-gray-300 hidden sm:block" />
 
           {/* STEM Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer" title="Science, Technology, Engineering, or Math degree - qualifies for 3-year OPT">
             <input
               type="checkbox"
               checked={filters.isStem}
@@ -107,7 +107,7 @@ export default function FilterPanel({
           </label>
 
           {/* Extraordinary Ability Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer" title="O-1/EB-1A: National/international acclaim, awards, publications, high salary, etc.">
             <input
               type="checkbox"
               checked={filters.hasExtraordinaryAbility}
@@ -120,7 +120,7 @@ export default function FilterPanel({
           </label>
 
           {/* Outstanding Researcher Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer" title="EB-1B: 3+ years research experience with international recognition">
             <input
               type="checkbox"
               checked={filters.isOutstandingResearcher}
@@ -133,7 +133,7 @@ export default function FilterPanel({
           </label>
 
           {/* Executive Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer" title="L-1A/EB-1C: Manager or executive at multinational company for 1+ year">
             <input
               type="checkbox"
               checked={filters.isExecutive}
@@ -155,14 +155,14 @@ export default function FilterPanel({
           </label>
 
           {/* Investment Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer" title="EB-5 requires $800k (TEA) or $1.05M investment">
             <input
               type="checkbox"
               checked={filters.hasInvestmentCapital}
               onChange={(e) => updateFilter("hasInvestmentCapital", e.target.checked)}
               className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
             />
-            <span className="text-sm text-gray-700">$100k+ to invest</span>
+            <span className="text-sm text-gray-700">$800k+ to invest (EB-5)</span>
           </label>
         </div>
 

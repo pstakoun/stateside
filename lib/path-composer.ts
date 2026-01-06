@@ -234,7 +234,7 @@ export const STATUS_PATHS: StatusPath[] = [
     id: "tn_direct",
     name: "TN Professional",
     emoji: "",
-    description: "TN visa for professionals in eligible USMCA occupations. Canadians can apply at border",
+    description: "TN visa for USMCA professionals. Canadians: apply at border (same day) or via I-129 change of status",
     validFromStatuses: ["canada", "tn", "h1b", "f1", "opt"],
     requirements: {
       minEducation: "bachelors",
@@ -277,14 +277,14 @@ export const STATUS_PATHS: StatusPath[] = [
     id: "opt_to_tn",
     name: "OPT → TN",
     emoji: "",
-    description: "Use OPT initially, then switch to TN for more flexibility. No lottery required",
+    description: "Use OPT initially, then get TN at border (requires quick trip to Canada). No lottery required",
     validFromStatuses: ["f1", "opt"],
     requirements: {
       minEducation: "bachelors",
     },
     stages: [
       { nodeId: "opt", duration: { min: 0.5, max: 1, display: "6-12 mo" }, note: "Initial work authorization" },
-      { nodeId: "tn", duration: { min: 2, max: 3, display: "2-3 yr" }, note: "Switch to TN" },
+      { nodeId: "tn", duration: { min: 2, max: 3, display: "2-3 yr" }, note: "Get TN at border" },
     ],
     permStartOffset: 0.5,
   },
@@ -369,7 +369,7 @@ export const GC_METHODS: GCMethod[] = [
       { nodeId: "pwd", duration: { min: 0.42, max: 0.58, display: "5-7 mo" } },
       { nodeId: "recruit", duration: { min: 0.17, max: 0.25, display: "2-3 mo" } },
       { nodeId: "perm", duration: { min: 1.17, max: 1.5, display: "14-18 mo" } },
-      { nodeId: "i140", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 days w/ premium" },
+      { nodeId: "i140", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 business days w/ premium" },
       { nodeId: "i485", duration: { min: 0.88, max: 1.5, display: "10-18 mo" }, concurrent: true },
       { nodeId: "gc", duration: { min: 0, max: 0, display: "" } },
     ],
@@ -382,7 +382,7 @@ export const GC_METHODS: GCMethod[] = [
     name: "EB-2 NIW",
     requiresPerm: false,
     stages: [
-      { nodeId: "eb2niw", duration: { min: 0.1, max: 0.75, display: "45d-9mo" }, note: "45 days w/ premium processing" },
+      { nodeId: "eb2niw", duration: { min: 0.15, max: 0.75, display: "2-9 mo" }, note: "45 business days (~9 wks) w/ premium" },
       { nodeId: "i485", duration: { min: 0.88, max: 1.5, display: "10-18 mo" }, concurrent: true, note: "Concurrent with I-140" },
       { nodeId: "gc", duration: { min: 0, max: 0, display: "" } },
     ],
@@ -396,7 +396,7 @@ export const GC_METHODS: GCMethod[] = [
     name: "EB-1A",
     requiresPerm: false,
     stages: [
-      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 days w/ premium processing" },
+      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 business days w/ premium" },
       { nodeId: "i485", duration: { min: 0.88, max: 1.5, display: "10-18 mo" }, concurrent: true, note: "Concurrent with I-140" },
       { nodeId: "gc", duration: { min: 0, max: 0, display: "" } },
     ],
@@ -410,7 +410,7 @@ export const GC_METHODS: GCMethod[] = [
     name: "EB-1B",
     requiresPerm: false,
     stages: [
-      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 days w/ premium processing" },
+      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 business days w/ premium" },
       { nodeId: "i485", duration: { min: 0.88, max: 1.5, display: "10-18 mo" }, concurrent: true, note: "Concurrent with I-140" },
       { nodeId: "gc", duration: { min: 0, max: 0, display: "" } },
     ],
@@ -425,7 +425,7 @@ export const GC_METHODS: GCMethod[] = [
     name: "EB-1C",
     requiresPerm: false,
     stages: [
-      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 days w/ premium processing" },
+      { nodeId: "eb1", duration: { min: 0.04, max: 0.75, display: "15d-9mo" }, note: "15 business days w/ premium" },
       { nodeId: "i485", duration: { min: 0.88, max: 1.5, display: "10-18 mo" }, concurrent: true, note: "Concurrent with I-140" },
       { nodeId: "gc", duration: { min: 0, max: 0, display: "" } },
     ],
@@ -625,18 +625,33 @@ function composePath(
 
   // Add status stages (work authorization track)
   for (const stage of statusPath.stages) {
+    // Adjust OPT duration based on STEM status
+    let duration = stage.duration;
+    let note = stage.note;
+    if (stage.nodeId === "opt") {
+      if (filters.isStem) {
+        // STEM OPT: up to 3 years total (1 year + 24 month extension)
+        duration = { min: 1, max: 3, display: "1-3 yr" };
+        note = "STEM OPT (3 years)";
+      } else {
+        // Regular OPT: 1 year only
+        duration = { min: 1, max: 1, display: "1 yr" };
+        note = "Standard OPT (1 year)";
+      }
+    }
+
     stages.push({
       nodeId: stage.nodeId,
       durationYears: {
-        min: stage.duration.min,
-        max: stage.duration.max,
-        display: stage.duration.display || `${stage.duration.min}-${stage.duration.max} yr`,
+        min: duration.min,
+        max: duration.max,
+        display: duration.display || `${duration.min}-${duration.max} yr`,
       },
       track: "status",
       startYear: statusEndYear,
-      note: stage.note,
+      note,
     });
-    statusEndYear += stage.duration.max;
+    statusEndYear += duration.max;
   }
 
   // Calculate when GC process starts
