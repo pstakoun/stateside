@@ -1,6 +1,6 @@
 import { FilterState, CurrentStatus, Education, Experience, isTNEligible, priorityDateToString } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
-import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait } from "./processing-times";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait, calculateWaitForExistingPD } from "./processing-times";
 import { DynamicData } from "./dynamic-data";
 
 // Current processing times (can be updated dynamically)
@@ -700,12 +700,19 @@ function composePath(
   let priorityDateStr = "Current";
 
   if (!gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
-    // If user has an existing priority date, use it for wait calculation
-    if (filters.hasApprovedI140 && filters.existingPriorityDate) {
+    // If user has an existing priority date, compare it to visa bulletin
+    if (filters.hasApprovedI140 && filters.existingPriorityDate && priorityDates) {
+      // Get visa bulletin cutoff for this category/country
+      const bulletinCutoff = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
       priorityDateStr = priorityDateToString(filters.existingPriorityDate);
-      priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+      // Calculate wait based on user's PD vs bulletin cutoff
+      priorityWaitMonths = calculateWaitForExistingPD(
+        filters.existingPriorityDate,
+        bulletinCutoff,
+        filters.countryOfBirth
+      );
     } else if (priorityDates) {
-      // Otherwise calculate from visa bulletin
+      // No existing PD - calculate from visa bulletin (new filing)
       priorityDateStr = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
       priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
     }

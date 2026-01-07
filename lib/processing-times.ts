@@ -286,3 +286,59 @@ export function formatPriorityWait(months: number): string {
   }
   return `~${years} years`;
 }
+
+// Calculate wait time for a user's existing priority date against visa bulletin
+// Returns 0 if current, otherwise estimated months to wait
+export function calculateWaitForExistingPD(
+  userPriorityDate: { month: number; year: number },
+  visaBulletinCutoff: string,
+  countryOfBirth: CountryOfBirth
+): number {
+  // If visa bulletin shows "Current", no wait
+  const trimmed = visaBulletinCutoff.trim().toLowerCase();
+  if (trimmed === "current" || trimmed === "c") {
+    return 0;
+  }
+
+  // Parse visa bulletin cutoff date
+  const shortMonths: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+
+  const parts = visaBulletinCutoff.split(" ");
+  if (parts.length !== 2) return 0;
+
+  const monthName = parts[0].toLowerCase().slice(0, 3);
+  const year = parseInt(parts[1], 10);
+  const monthNum = shortMonths[monthName];
+
+  if (monthNum === undefined || isNaN(year)) return 0;
+
+  const bulletinDate = new Date(year, monthNum, 1);
+  const userDate = new Date(userPriorityDate.year, userPriorityDate.month - 1, 1);
+
+  // If user's PD is on or before the bulletin cutoff, they're current
+  if (userDate <= bulletinDate) {
+    return 0;
+  }
+
+  // User's PD is after the cutoff - calculate how far behind
+  const monthsBehind =
+    (userDate.getFullYear() - bulletinDate.getFullYear()) * 12 +
+    (userDate.getMonth() - bulletinDate.getMonth());
+
+  // Estimate wait time based on country
+  // India/China: bulletin moves very slowly (~1-2 months per year)
+  // Other countries: usually current or move quickly
+  if (countryOfBirth === "india") {
+    // India EB-2/EB-3: roughly 1 month bulletin movement per year
+    return monthsBehind * 12; // Each month behind = ~1 year wait
+  } else if (countryOfBirth === "china") {
+    // China: moves faster than India but still slow
+    return monthsBehind * 6; // Each month behind = ~6 months wait
+  } else {
+    // ROW: usually current, but if backlogged, moves ~1:1
+    return monthsBehind;
+  }
+}
