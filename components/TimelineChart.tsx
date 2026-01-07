@@ -5,6 +5,7 @@ import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
 import { generatePaths, ComposedStage, setProcessingTimes } from "@/lib/path-composer";
 import { adaptDynamicData } from "@/lib/processing-times";
+import { DynamicData } from "@/lib/dynamic-data";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -39,6 +40,7 @@ export default function TimelineChart({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
+  const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"] | undefined>(undefined);
 
   // Fetch processing times on mount
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function TimelineChart({
           if (result.success && result.data) {
             const adapted = adaptDynamicData(result.data);
             setProcessingTimes(adapted);
+            setPriorityDates(result.data.priorityDates);
             setProcessingTimesLoaded(true);
           }
         }
@@ -66,12 +69,12 @@ export default function TimelineChart({
   const currentNodeId = statusToNodeId[filters.currentStatus];
 
   // Generate paths dynamically using the composer
-  // Re-generate when processing times are updated
+  // Re-generate when processing times or priority dates are updated
   const paths = useMemo(() => {
-    const generatedPaths = generatePaths(filters);
+    const generatedPaths = generatePaths(filters, priorityDates);
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
-  }, [filters, onMatchingCountChange, processingTimesLoaded]);
+  }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates]);
 
   // Check if a path has multiple tracks
   const hasMultipleTracks = (stages: ComposedStage[]) => {
@@ -203,6 +206,75 @@ export default function TimelineChart({
 
                   {/* Stages */}
                   {path.stages.map((stage, idx) => {
+                    // Special rendering for priority date wait stages
+                    if (stage.isPriorityWait) {
+                      const startYear = stage.startYear;
+                      const duration = stage.durationYears.max || 0.5;
+                      const left = startYear * PIXELS_PER_YEAR;
+                      const naturalWidth = duration * PIXELS_PER_YEAR - 2;
+                      const width = Math.max(naturalWidth, 60);
+                      const isHovered = hoveredStage === `${path.id}-${idx}`;
+
+                      // Calculate top position (GC track)
+                      let top = multiTrack ? TRACK_HEIGHT + TRACK_GAP : 0;
+
+                      // Color based on wait length
+                      const waitYears = duration;
+                      let bgColor = "bg-orange-500";
+                      let borderColor = "border-orange-600";
+                      if (waitYears >= 10) {
+                        bgColor = "bg-red-600";
+                        borderColor = "border-red-700";
+                      } else if (waitYears >= 5) {
+                        bgColor = "bg-red-500";
+                        borderColor = "border-red-600";
+                      }
+
+                      return (
+                        <div
+                          key={`${stage.nodeId}-${idx}`}
+                          className={`absolute rounded cursor-pointer transition-all duration-150 border text-white
+                            ${bgColor} ${borderColor}
+                            ${isHovered ? "ring-2 ring-offset-1 ring-red-400 scale-105 z-30" : "z-10"}
+                          `}
+                          style={{
+                            left: `${left}px`,
+                            width: `${width}px`,
+                            height: TRACK_HEIGHT,
+                            top: `${top}px`,
+                          }}
+                          onClick={() => onStageClick(stage.nodeId)}
+                          onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
+                          onMouseLeave={() => setHoveredStage(null)}
+                        >
+                          <div className="h-full px-1.5 flex flex-col justify-center overflow-hidden">
+                            <div className="font-semibold text-[10px] leading-tight truncate">
+                              PD Wait
+                            </div>
+                            <div className="text-[9px] opacity-90 leading-tight truncate">
+                              {stage.durationYears.display}
+                            </div>
+                          </div>
+
+                          {/* Tooltip on hover */}
+                          {isHovered && (
+                            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap z-40 max-w-xs">
+                              <div className="font-semibold">Priority Date Backlog</div>
+                              <div className="text-gray-300">Wait: {stage.durationYears.display}</div>
+                              {stage.priorityDateStr && (
+                                <div className="text-gray-400 text-[10px] mt-0.5">
+                                  Current priority date: {stage.priorityDateStr}
+                                </div>
+                              )}
+                              <div className="text-gray-400 text-[10px] mt-0.5">
+                                Based on Visa Bulletin data
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     const node = getNode(stage.nodeId);
                     if (!node) return null;
 
@@ -338,6 +410,10 @@ export default function TimelineChart({
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-amber-500" />
             <span className="text-sm text-gray-600">GC Process</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-orange-500" />
+            <span className="text-sm text-gray-600">Priority Date Wait</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-brand-600" />

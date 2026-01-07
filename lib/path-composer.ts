@@ -1,6 +1,7 @@
 import { FilterState, CurrentStatus, Education, Experience } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
-import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths } from "./processing-times";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait } from "./processing-times";
+import { DynamicData } from "./dynamic-data";
 
 // Current processing times (can be updated dynamically)
 let currentProcessingTimes: ProcessingTimes = DEFAULT_PROCESSING_TIMES;
@@ -157,6 +158,8 @@ export interface ComposedStage {
   startYear: number;
   note?: string;
   isConcurrent?: boolean; // true if this stage runs concurrently with the previous stage
+  isPriorityWait?: boolean; // true if this is a priority date wait stage
+  priorityDateStr?: string; // the priority date string (e.g., "Jul 2013")
 }
 
 // Education ranking for comparisons
@@ -602,7 +605,8 @@ function composePath(
   statusPath: StatusPath,
   gcMethod: GCMethod,
   gcCategory: string,
-  filters: FilterState
+  filters: FilterState,
+  priorityDates?: DynamicData["priorityDates"]
 ): ComposedPath {
   const stages: ComposedStage[] = [];
   let statusEndYear = 0;
@@ -684,6 +688,56 @@ function composePath(
     gcMaxEndYear = Math.max(gcMaxEndYear, stageEndYear);
   }
 
+  // Check for priority date backlog and insert wait stage if needed
+  // This applies to employment-based categories (EB-1, EB-2, EB-3)
+  let priorityWaitMonths = 0;
+  let priorityDateStr = "Current";
+
+  if (priorityDates && !gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
+    priorityDateStr = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
+    priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+  }
+
+  // Insert priority wait stage between I-140 and I-485 if backlogged
+  if (priorityWaitMonths > 0) {
+    const i140Index = stages.findIndex(s => s.nodeId === "i140" || s.nodeId === "eb1" || s.nodeId === "eb2niw");
+    const i485Index = stages.findIndex(s => s.nodeId === "i485");
+
+    if (i140Index >= 0 && i485Index >= 0) {
+      const i140Stage = stages[i140Index];
+      const waitStartYear = i140Stage.startYear + i140Stage.durationYears.max;
+      const waitYears = priorityWaitMonths / 12;
+
+      // Insert priority wait stage
+      const priorityWaitStage: ComposedStage = {
+        nodeId: "priority_wait",
+        durationYears: {
+          min: waitYears,
+          max: waitYears,
+          display: formatPriorityWait(priorityWaitMonths),
+        },
+        track: "gc",
+        startYear: waitStartYear,
+        note: `Priority date: ${priorityDateStr}`,
+        isPriorityWait: true,
+        priorityDateStr,
+      };
+
+      // Insert after I-140 (before I-485)
+      stages.splice(i485Index, 0, priorityWaitStage);
+
+      // Update I-485 to start after the wait and NOT be concurrent
+      const newI485Index = i485Index + 1;
+      stages[newI485Index].startYear = waitStartYear + waitYears;
+      stages[newI485Index].isConcurrent = false;
+      stages[newI485Index].note = "After priority date is current";
+
+      // Update GC tracking variables
+      gcMaxEndYear = stages[newI485Index].startYear + stages[newI485Index].durationYears.max;
+      gcSequentialYear = gcMaxEndYear;
+    }
+  }
+
   // Calculate total duration - use the actual max end time
   const maxStatusYear = statusEndYear;
   const totalMax = Math.max(maxStatusYear, gcMaxEndYear);
@@ -755,7 +809,10 @@ function composePath(
 /**
  * Generate all valid paths for the current user filters
  */
-export function generatePaths(filters: FilterState): ComposedPath[] {
+export function generatePaths(
+  filters: FilterState,
+  priorityDates?: DynamicData["priorityDates"]
+): ComposedPath[] {
   const paths: ComposedPath[] = [];
 
   for (const statusPath of STATUS_PATHS) {
@@ -770,7 +827,7 @@ export function generatePaths(filters: FilterState): ComposedPath[] {
       const gcCategory = computeGCCategory(filters, gcMethod, statusPath);
 
       // Compose and add the path
-      const path = composePath(statusPath, gcMethod, gcCategory, filters);
+      const path = composePath(statusPath, gcMethod, gcCategory, filters, priorityDates);
       paths.push(path);
     }
   }

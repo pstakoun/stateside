@@ -1,11 +1,13 @@
 export type Education = "highschool" | "bachelors" | "masters" | "phd";
 export type Experience = "lt2" | "2to5" | "gt5";
 export type CurrentStatus = "canada" | "f1" | "opt" | "tn" | "h1b" | "other";
+export type CountryOfBirth = "india" | "china" | "other";
 
 export interface FilterState {
   education: Education;
   experience: Experience;
   currentStatus: CurrentStatus;
+  countryOfBirth: CountryOfBirth;
   hasExtraordinaryAbility: boolean;
   isOutstandingResearcher: boolean;
   isExecutive: boolean;
@@ -29,6 +31,7 @@ export const defaultFilters: FilterState = {
   education: "bachelors",
   experience: "lt2",
   currentStatus: "canada",
+  countryOfBirth: "other",
   hasExtraordinaryAbility: false,
   isOutstandingResearcher: false,
   isExecutive: false,
@@ -163,5 +166,11 @@ export const statusLabels: Record<CurrentStatus, string> = {
   opt: "On OPT",
   tn: "TN Visa",
   h1b: "H-1B",
+  other: "Other",
+};
+
+export const countryLabels: Record<CountryOfBirth, string> = {
+  india: "India",
+  china: "China",
   other: "Other",
 };

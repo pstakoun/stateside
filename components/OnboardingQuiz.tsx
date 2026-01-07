@@ -6,6 +6,7 @@ import {
   Education,
   Experience,
   CurrentStatus,
+  CountryOfBirth,
   defaultFilters,
 } from "@/lib/filter-paths";
 
@@ -34,6 +35,12 @@ const experienceOptions: { value: Experience; label: string; description: string
   { value: "lt2", label: "Less than 2 years", description: "Entry level or recent graduate" },
   { value: "2to5", label: "2-5 years", description: "Mid-level professional" },
   { value: "gt5", label: "5+ years", description: "Senior professional" },
+];
+
+const countryOptions: { value: CountryOfBirth; label: string; description: string }[] = [
+  { value: "other", label: "Other countries", description: "Faster green card processing" },
+  { value: "india", label: "India", description: "Significant EB backlogs" },
+  { value: "china", label: "China (mainland)", description: "EB backlogs apply" },
 ];
 
 function hasAnySpecialCircumstance(filters: FilterState): boolean {
@@ -206,6 +213,37 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">Other field of study</div>
                 </button>
+              </div>
+            </div>
+
+            {/* Country of Birth */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">
+                Country of birth
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Affects green card wait times due to visa bulletin backlogs
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {countryOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateFilter("countryOfBirth", option.value)}
+                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                      filters.countryOfBirth === option.value
+                        ? "border-brand-500 bg-brand-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className={`font-medium text-sm ${
+                      filters.countryOfBirth === option.value ? "text-brand-700" : "text-gray-900"
+                    }`}>
+                      {option.label}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">{option.description}</div>
+                  </button>
+                ))}
               </div>
             </div>
 

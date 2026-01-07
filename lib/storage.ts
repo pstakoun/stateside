@@ -36,6 +36,11 @@ export function getStoredProfile(): UserProfile | null {
       return null;
     }
 
+    // Migration: add countryOfBirth for existing users
+    if (!profile.filters.countryOfBirth) {
+      profile.filters.countryOfBirth = "other";
+    }
+
     return profile;
   } catch (e) {
     console.warn("Failed to read user profile from localStorage:", e);

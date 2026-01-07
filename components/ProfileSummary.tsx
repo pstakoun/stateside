@@ -5,6 +5,7 @@ import {
   educationLabels,
   experienceLabels,
   statusLabels,
+  countryLabels,
 } from "@/lib/filter-paths";
 
 interface ProfileSummaryProps {
@@ -23,6 +24,11 @@ export default function ProfileSummary({
     educationLabels[filters.education],
     experienceLabels[filters.experience],
   ];
+
+  // Show country only for India/China (backlogged countries)
+  if (filters.countryOfBirth !== "other") {
+    tags.push(`Born in ${countryLabels[filters.countryOfBirth]}`);
+  }
 
   if (filters.isStem) tags.push("STEM");
   if (filters.hasExtraordinaryAbility) tags.push("Extraordinary ability");
