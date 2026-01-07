@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import TimelineChart from "@/components/TimelineChart";
 import PathDetail from "@/components/PathDetail";
-import FilterPanel from "@/components/FilterPanel";
+import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
 import { FilterState, defaultFilters } from "@/lib/filter-paths";
 import { getStoredProfile, saveUserProfile } from "@/lib/storage";
@@ -37,11 +37,6 @@ export default function Home() {
     setShowOnboarding(false);
   };
 
-  const handleFiltersChange = (newFilters: FilterState) => {
-    setFilters(newFilters);
-    saveUserProfile(newFilters);
-  };
-
   const handleEditProfile = () => {
     setShowOnboarding(true);
   };
@@ -67,62 +62,39 @@ export default function Home() {
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            {/* Logo */}
-            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M5 12h14M12 5l7 7-7 7"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <span className="text-xl font-semibold text-gray-900 tracking-tight">
-              Stateside
-            </span>
-            <span className="text-sm text-gray-400 hidden sm:inline">
-              US immigration paths
-            </span>
-          </div>
-
-          {/* Edit Profile Button */}
-          <button
-            onClick={handleEditProfile}
-            className="text-sm text-gray-500 hover:text-brand-600 transition-colors flex items-center gap-1.5"
-          >
+        <div className="max-w-7xl mx-auto flex items-center gap-2.5">
+          {/* Logo */}
+          <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
             <svg
-              width="16"
-              height="16"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+              <path
+                d="M5 12h14M12 5l7 7-7 7"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
-            <span className="hidden sm:inline">Edit profile</span>
-          </button>
+          </div>
+          <span className="text-xl font-semibold text-gray-900 tracking-tight">
+            Stateside
+          </span>
+          <span className="text-sm text-gray-400 hidden sm:inline">
+            US immigration paths
+          </span>
         </div>
       </header>
 
-      {/* Filter Panel */}
-      <FilterPanel
+      {/* Profile Summary Bar */}
+      <ProfileSummary
         filters={filters}
-        onChange={handleFiltersChange}
         matchingCount={matchingCount}
+        onEdit={handleEditProfile}
       />
 
       {/* Timeline area */}
