@@ -2,6 +2,12 @@ export type Education = "highschool" | "bachelors" | "masters" | "phd";
 export type Experience = "lt2" | "2to5" | "gt5";
 export type CurrentStatus = "canada" | "f1" | "opt" | "tn" | "h1b" | "other";
 export type CountryOfBirth = "canada" | "mexico" | "india" | "china" | "other";
+export type EBCategory = "eb1" | "eb2" | "eb3";
+
+export interface PriorityDate {
+  month: number; // 1-12
+  year: number;  // e.g., 2019
+}
 
 export interface FilterState {
   education: Education;
@@ -15,6 +21,10 @@ export interface FilterState {
   isMarriedToUSCitizen: boolean;
   hasInvestmentCapital: boolean;
   isCanadianOrMexicanCitizen: boolean; // for TN eligibility when not born in CA/MX
+  // Existing case info
+  hasApprovedI140: boolean;
+  existingPriorityDate: PriorityDate | null;
+  existingPriorityDateCategory: EBCategory | null;
 }
 
 export interface PathEligibility {
@@ -40,7 +50,22 @@ export const defaultFilters: FilterState = {
   isMarriedToUSCitizen: false,
   hasInvestmentCapital: false,
   isCanadianOrMexicanCitizen: false,
+  hasApprovedI140: false,
+  existingPriorityDate: null,
+  existingPriorityDateCategory: null,
 };
+
+// Helper to format priority date as "Mon YYYY" string
+export function formatPriorityDateShort(pd: PriorityDate): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[pd.month - 1]} ${pd.year}`;
+}
+
+// Helper to convert PriorityDate to "Month YYYY" string for visa bulletin comparison
+export function priorityDateToString(pd: PriorityDate): string {
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${months[pd.month - 1]} ${pd.year}`;
+}
 
 // Education level ranking for comparison
 const educationRank: Record<Education, number> = {
@@ -177,6 +202,12 @@ export const countryLabels: Record<CountryOfBirth, string> = {
   india: "India",
   china: "China",
   other: "Other",
+};
+
+export const ebCategoryLabels: Record<EBCategory, string> = {
+  eb1: "EB-1",
+  eb2: "EB-2",
+  eb3: "EB-3",
 };
 
 // Check if user is eligible for TN visa (Canadian or Mexican citizen)

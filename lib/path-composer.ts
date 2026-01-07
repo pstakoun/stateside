@@ -1,4 +1,4 @@
-import { FilterState, CurrentStatus, Education, Experience, isTNEligible } from "./filter-paths";
+import { FilterState, CurrentStatus, Education, Experience, isTNEligible, priorityDateToString } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
 import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait } from "./processing-times";
 import { DynamicData } from "./dynamic-data";
@@ -699,9 +699,16 @@ function composePath(
   let priorityWaitMonths = 0;
   let priorityDateStr = "Current";
 
-  if (priorityDates && !gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
-    priorityDateStr = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
-    priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+  if (!gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
+    // If user has an existing priority date, use it for wait calculation
+    if (filters.hasApprovedI140 && filters.existingPriorityDate) {
+      priorityDateStr = priorityDateToString(filters.existingPriorityDate);
+      priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+    } else if (priorityDates) {
+      // Otherwise calculate from visa bulletin
+      priorityDateStr = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
+      priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+    }
   }
 
   // Insert priority wait stage between I-140 and I-485 if backlogged
