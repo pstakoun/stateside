@@ -756,7 +756,8 @@ function composePath(
     gcMethod.stages.filter(s => !s.concurrent).reduce((sum, s) => {
       const dynamicDur = getDynamicDuration(s.nodeId);
       return sum + (dynamicDur?.min ?? s.duration.min);
-    }, 0);
+    }, 0) +
+    (priorityWaitMonths / 12); // Add priority date wait to minimum
   const totalMin = Math.max(minStatusYear, minGCYear);
 
   // Build path name
