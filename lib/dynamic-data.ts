@@ -23,7 +23,16 @@ export interface DynamicData {
     i130: { min: number; max: number; premiumDays?: number };
     i129: { min: number; max: number; premiumDays: number };
   };
+  // Visa Bulletin has TWO charts:
+  // - Final Action Dates: When your case will be APPROVED
+  // - Dates for Filing: When you can SUBMIT your I-485 (usually more current)
   priorityDates: {
+    eb1: { allOther: string; china: string; india: string };
+    eb2: { allOther: string; china: string; india: string };
+    eb3: { allOther: string; china: string; india: string };
+  };
+  // Dates for Filing - used to determine if you can file I-485 (concurrent filing)
+  datesForFiling: {
     eb1: { allOther: string; china: string; india: string };
     eb2: { allOther: string; china: string; india: string };
     eb3: { allOther: string; china: string; india: string };
@@ -112,13 +121,30 @@ async function fetchDOLData(): Promise<{
   }
 }
 
-// Fetch Visa Bulletin priority dates
-async function fetchVisaBulletin(): Promise<DynamicData["priorityDates"]> {
+// Visa Bulletin date structure for a single chart
+type VisaBulletinChart = {
+  eb1: { allOther: string; china: string; india: string };
+  eb2: { allOther: string; china: string; india: string };
+  eb3: { allOther: string; china: string; india: string };
+};
+
+// Fetch Visa Bulletin - returns BOTH Final Action Dates and Dates for Filing
+async function fetchVisaBulletin(): Promise<{
+  finalAction: VisaBulletinChart;
+  datesForFiling: VisaBulletinChart;
+}> {
   // Default values based on Jan 2026 bulletin
-  const defaults = {
+  const defaultsFinalAction: VisaBulletinChart = {
     eb1: { allOther: "Current", china: "Feb 2023", india: "Feb 2023" },
     eb2: { allOther: "Apr 2024", china: "Sep 2021", india: "Jul 2013" },
     eb3: { allOther: "Apr 2023", china: "May 2021", india: "Nov 2013" },
+  };
+
+  // Dates for Filing are typically more current (further ahead)
+  const defaultsDatesForFiling: VisaBulletinChart = {
+    eb1: { allOther: "Current", china: "Aug 2023", india: "Aug 2023" },
+    eb2: { allOther: "Oct 2024", china: "Jan 2022", india: "Dec 2013" },
+    eb3: { allOther: "Jul 2023", china: "Jan 2022", india: "Aug 2014" },
   };
 
   try {
@@ -157,34 +183,62 @@ async function fetchVisaBulletin(): Promise<DynamicData["priorityDates"]> {
       return trimmed;
     };
 
-    // Extract table rows for EB categories
-    // Pattern: <td>1st</td><td>C</td><td>01FEB23</td><td>01FEB23</td>...
-    // Columns: Category, All Chargeability, China, India, Mexico, Philippines
+    // The visa bulletin has TWO employment-based tables:
+    // 1. Final Action Dates (first table) - when case will be approved
+    // 2. Dates for Filing (second table) - when you can submit I-485
+    //
+    // We need to find ALL matches and use the first occurrence for Final Action
+    // and second occurrence for Dates for Filing
 
-    const eb1Match = html.match(/<td>1st<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
-    const eb2Match = html.match(/<td>2nd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
-    const eb3Match = html.match(/<td>3rd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/i);
+    // Find all EB category rows
+    const eb1Matches = Array.from(html.matchAll(/<td>1st<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/gi));
+    const eb2Matches = Array.from(html.matchAll(/<td>2nd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/gi));
+    const eb3Matches = Array.from(html.matchAll(/<td>3rd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/gi));
 
-    return {
+    // First match = Final Action Dates, Second match = Dates for Filing
+    const finalAction: VisaBulletinChart = {
       eb1: {
-        allOther: eb1Match ? parseDate(eb1Match[1]) : defaults.eb1.allOther,
-        china: eb1Match ? parseDate(eb1Match[2]) : defaults.eb1.china,
-        india: eb1Match ? parseDate(eb1Match[3]) : defaults.eb1.india,
+        allOther: eb1Matches[0] ? parseDate(eb1Matches[0][1]) : defaultsFinalAction.eb1.allOther,
+        china: eb1Matches[0] ? parseDate(eb1Matches[0][2]) : defaultsFinalAction.eb1.china,
+        india: eb1Matches[0] ? parseDate(eb1Matches[0][3]) : defaultsFinalAction.eb1.india,
       },
       eb2: {
-        allOther: eb2Match ? parseDate(eb2Match[1]) : defaults.eb2.allOther,
-        china: eb2Match ? parseDate(eb2Match[2]) : defaults.eb2.china,
-        india: eb2Match ? parseDate(eb2Match[3]) : defaults.eb2.india,
+        allOther: eb2Matches[0] ? parseDate(eb2Matches[0][1]) : defaultsFinalAction.eb2.allOther,
+        china: eb2Matches[0] ? parseDate(eb2Matches[0][2]) : defaultsFinalAction.eb2.china,
+        india: eb2Matches[0] ? parseDate(eb2Matches[0][3]) : defaultsFinalAction.eb2.india,
       },
       eb3: {
-        allOther: eb3Match ? parseDate(eb3Match[1]) : defaults.eb3.allOther,
-        china: eb3Match ? parseDate(eb3Match[2]) : defaults.eb3.china,
-        india: eb3Match ? parseDate(eb3Match[3]) : defaults.eb3.india,
+        allOther: eb3Matches[0] ? parseDate(eb3Matches[0][1]) : defaultsFinalAction.eb3.allOther,
+        china: eb3Matches[0] ? parseDate(eb3Matches[0][2]) : defaultsFinalAction.eb3.china,
+        india: eb3Matches[0] ? parseDate(eb3Matches[0][3]) : defaultsFinalAction.eb3.india,
       },
     };
+
+    const datesForFiling: VisaBulletinChart = {
+      eb1: {
+        allOther: eb1Matches[1] ? parseDate(eb1Matches[1][1]) : defaultsDatesForFiling.eb1.allOther,
+        china: eb1Matches[1] ? parseDate(eb1Matches[1][2]) : defaultsDatesForFiling.eb1.china,
+        india: eb1Matches[1] ? parseDate(eb1Matches[1][3]) : defaultsDatesForFiling.eb1.india,
+      },
+      eb2: {
+        allOther: eb2Matches[1] ? parseDate(eb2Matches[1][1]) : defaultsDatesForFiling.eb2.allOther,
+        china: eb2Matches[1] ? parseDate(eb2Matches[1][2]) : defaultsDatesForFiling.eb2.china,
+        india: eb2Matches[1] ? parseDate(eb2Matches[1][3]) : defaultsDatesForFiling.eb2.india,
+      },
+      eb3: {
+        allOther: eb3Matches[1] ? parseDate(eb3Matches[1][1]) : defaultsDatesForFiling.eb3.allOther,
+        china: eb3Matches[1] ? parseDate(eb3Matches[1][2]) : defaultsDatesForFiling.eb3.china,
+        india: eb3Matches[1] ? parseDate(eb3Matches[1][3]) : defaultsDatesForFiling.eb3.india,
+      },
+    };
+
+    return { finalAction, datesForFiling };
   } catch (error) {
     console.error("Visa Bulletin fetch error:", error);
-    return defaults;
+    return {
+      finalAction: defaultsFinalAction,
+      datesForFiling: defaultsDatesForFiling,
+    };
   }
 }
 
@@ -242,7 +296,7 @@ function getCurrentFees(): DynamicData["fees"] {
     i129H1B: 2780, // Includes base + ACWIA + fraud fees
     i907: 2805,
     asylumFee: 600,
-    biometrics: 85,
+    biometrics: 0, // Separate biometrics fee eliminated April 2024
   };
 }
 
@@ -251,7 +305,7 @@ export async function fetchAllDynamicData(): Promise<DynamicData> {
   const now = new Date().toISOString();
 
   // Fetch all data in parallel
-  const [dolData, visaBulletin, uscisData] = await Promise.all([
+  const [dolData, visaBulletinData, uscisData] = await Promise.all([
     fetchDOLData(),
     fetchVisaBulletin(),
     fetchUSCISFromGitHub(),
@@ -274,7 +328,10 @@ export async function fetchAllDynamicData(): Promise<DynamicData> {
       i130: uscisData.i130,
       i129: uscisData.i129,
     },
-    priorityDates: visaBulletin,
+    // Final Action Dates - when case will be APPROVED
+    priorityDates: visaBulletinData.finalAction,
+    // Dates for Filing - when you can SUBMIT I-485 (usually more current)
+    datesForFiling: visaBulletinData.datesForFiling,
     fees: getCurrentFees(),
   };
 }

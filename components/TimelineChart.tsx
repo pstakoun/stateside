@@ -41,6 +41,7 @@ export default function TimelineChart({
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"] | undefined>(undefined);
+  const [datesForFiling, setDatesForFiling] = useState<DynamicData["datesForFiling"] | undefined>(undefined);
 
   // Fetch processing times on mount
   useEffect(() => {
@@ -52,7 +53,10 @@ export default function TimelineChart({
           if (result.success && result.data) {
             const adapted = adaptDynamicData(result.data);
             setProcessingTimes(adapted);
+            // Final Action Dates - for determining when case will be approved
             setPriorityDates(result.data.priorityDates);
+            // Dates for Filing - for determining when you can submit I-485
+            setDatesForFiling(result.data.datesForFiling);
             setProcessingTimesLoaded(true);
           }
         }
@@ -71,10 +75,10 @@ export default function TimelineChart({
   // Generate paths dynamically using the composer
   // Re-generate when processing times or priority dates are updated
   const paths = useMemo(() => {
-    const generatedPaths = generatePaths(filters, priorityDates);
+    const generatedPaths = generatePaths(filters, priorityDates, datesForFiling);
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
-  }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates]);
+  }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates, datesForFiling]);
 
   // Check if a path has multiple tracks
   const hasMultipleTracks = (stages: ComposedStage[]) => {

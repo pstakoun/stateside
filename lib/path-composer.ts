@@ -612,7 +612,8 @@ function composePath(
   gcMethod: GCMethod,
   gcCategory: string,
   filters: FilterState,
-  priorityDates?: DynamicData["priorityDates"]
+  priorityDates?: DynamicData["priorityDates"],
+  datesForFiling?: DynamicData["datesForFiling"]
 ): ComposedPath {
   const stages: ComposedStage[] = [];
   let statusEndYear = 0;
@@ -694,36 +695,75 @@ function composePath(
     gcMaxEndYear = Math.max(gcMaxEndYear, stageEndYear);
   }
 
-  // Check for priority date backlog and insert wait stage if needed
+  // Check for priority date backlog and determine concurrent filing eligibility
   // This applies to employment-based categories (EB-1, EB-2, EB-3)
+  //
+  // IMPORTANT: The Visa Bulletin has TWO charts:
+  // 1. "Dates for Filing" - determines when you can SUBMIT your I-485
+  // 2. "Final Action Dates" - determines when your case will be APPROVED
+  //
+  // For concurrent filing: use Dates for Filing
+  // For wait time until approval: use Final Action Dates
   let priorityWaitMonths = 0;
   let priorityDateStr = "Current";
+  let canFileConcurrently = true;
 
   if (!gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
-    // If user has an existing priority date, compare it to visa bulletin
-    if (filters.hasApprovedI140 && filters.existingPriorityDate && priorityDates) {
-      // Get visa bulletin cutoff for this category/country
-      const bulletinCutoff = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
+    // Determine filing eligibility using Dates for Filing chart
+    const filingDates = datesForFiling || priorityDates; // Fall back to final action if no filing dates
+    // Determine approval wait using Final Action Dates
+    const approvalDates = priorityDates;
+
+    if (filters.hasApprovedI140 && filters.existingPriorityDate) {
       priorityDateStr = priorityDateToString(filters.existingPriorityDate);
-      // Calculate wait based on user's PD vs bulletin cutoff
-      priorityWaitMonths = calculateWaitForExistingPD(
-        filters.existingPriorityDate,
-        bulletinCutoff,
-        filters.countryOfBirth
-      );
-    } else if (priorityDates) {
+
+      // Check if can file concurrently (using Dates for Filing)
+      if (filingDates) {
+        const filingCutoff = getPriorityDateForPath(filingDates, gcCategory, filters.countryOfBirth);
+        const filingWait = calculateWaitForExistingPD(
+          filters.existingPriorityDate,
+          filingCutoff,
+          filters.countryOfBirth
+        );
+        canFileConcurrently = filingWait === 0;
+      }
+
+      // Calculate wait for approval (using Final Action Dates)
+      if (approvalDates) {
+        const approvalCutoff = getPriorityDateForPath(approvalDates, gcCategory, filters.countryOfBirth);
+        priorityWaitMonths = calculateWaitForExistingPD(
+          filters.existingPriorityDate,
+          approvalCutoff,
+          filters.countryOfBirth
+        );
+      }
+    } else if (approvalDates) {
       // No existing PD - calculate from visa bulletin (new filing)
-      priorityDateStr = getPriorityDateForPath(priorityDates, gcCategory, filters.countryOfBirth);
+      priorityDateStr = getPriorityDateForPath(approvalDates, gcCategory, filters.countryOfBirth);
       priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+
+      // For new filers, check Dates for Filing for concurrent eligibility
+      if (filingDates) {
+        const filingDateStr = getPriorityDateForPath(filingDates, gcCategory, filters.countryOfBirth);
+        const filingWait = calculatePriorityDateWait(filingDateStr);
+        canFileConcurrently = filingWait === 0;
+      }
     }
   }
 
-  // Insert priority wait stage between I-140 and I-485 if backlogged
-  if (priorityWaitMonths > 0) {
-    const i140Index = stages.findIndex(s => s.nodeId === "i140" || s.nodeId === "eb1" || s.nodeId === "eb2niw");
-    const i485Index = stages.findIndex(s => s.nodeId === "i485");
+  // Handle priority date backlog based on filing eligibility
+  //
+  // Three scenarios:
+  // 1. canFileConcurrently=true, waitMonths=0 → Fully current, concurrent I-485, no wait
+  // 2. canFileConcurrently=true, waitMonths>0 → Can file now, but wait for approval (concurrent I-485 with pending wait)
+  // 3. canFileConcurrently=false, waitMonths>0 → Can't file yet, wait stage blocks I-485
 
-    if (i140Index >= 0 && i485Index >= 0) {
+  const i140Index = stages.findIndex(s => s.nodeId === "i140" || s.nodeId === "eb1" || s.nodeId === "eb2niw");
+  const i485Index = stages.findIndex(s => s.nodeId === "i485");
+
+  if (i140Index >= 0 && i485Index >= 0) {
+    if (!canFileConcurrently && priorityWaitMonths > 0) {
+      // CANNOT file concurrently - show wait stage before I-485
       const i140Stage = stages[i140Index];
       const waitStartYear = i140Stage.startYear + i140Stage.durationYears.max;
       const waitYears = priorityWaitMonths / 12;
@@ -738,7 +778,7 @@ function composePath(
         },
         track: "gc",
         startYear: waitStartYear,
-        note: `Priority date: ${priorityDateStr}`,
+        note: `Wait until ${priorityDateStr} is current for filing`,
         isPriorityWait: true,
         priorityDateStr,
       };
@@ -751,7 +791,7 @@ function composePath(
       const i485NewStart = waitStartYear + waitYears;
       stages[newI485Index].startYear = i485NewStart;
       stages[newI485Index].isConcurrent = false;
-      stages[newI485Index].note = "After priority date is current";
+      stages[newI485Index].note = "After priority date is current for filing";
 
       // Update any stages after I-485 (e.g., the gc marker)
       const i485EndYear = i485NewStart + stages[newI485Index].durationYears.max;
@@ -764,7 +804,12 @@ function composePath(
       // Update GC tracking variables
       gcMaxEndYear = i485EndYear;
       gcSequentialYear = gcMaxEndYear;
+    } else if (canFileConcurrently && priorityWaitMonths > 0) {
+      // CAN file concurrently, but will wait for approval
+      // I-485 stays concurrent, but add note about pending wait
+      stages[i485Index].note = `Concurrent filing OK. ~${formatPriorityWait(priorityWaitMonths)} wait for approval`;
     }
+    // If canFileConcurrently && priorityWaitMonths === 0: Fully current, no changes needed
   }
 
   // Calculate total duration - use the actual max end time
@@ -841,7 +886,8 @@ function composePath(
  */
 export function generatePaths(
   filters: FilterState,
-  priorityDates?: DynamicData["priorityDates"]
+  priorityDates?: DynamicData["priorityDates"],
+  datesForFiling?: DynamicData["datesForFiling"]
 ): ComposedPath[] {
   const paths: ComposedPath[] = [];
 
@@ -857,7 +903,7 @@ export function generatePaths(
       const gcCategory = computeGCCategory(filters, gcMethod, statusPath);
 
       // Compose and add the path
-      const path = composePath(statusPath, gcMethod, gcCategory, filters, priorityDates);
+      const path = composePath(statusPath, gcMethod, gcCategory, filters, priorityDates, datesForFiling);
       paths.push(path);
     }
   }

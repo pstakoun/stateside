@@ -79,9 +79,9 @@
       "name": "TN Visa",
       "fullName": "USMCA Professional",
       "category": "work",
-      "description": "Fast-track work visa for Canadian professionals in 63 specific occupations. Renewable indefinitely.",
+      "description": "Fast-track work visa for Canadian and Mexican professionals in 63 specific occupations. Renewable indefinitely.",
       "requirements": [
-        "Canadian citizenship",
+        "Canadian or Mexican citizenship",
         "Job offer in TN-eligible profession",
         "Relevant degree or experience for the profession"
       ],
@@ -160,11 +160,11 @@
         },
         {
           "form": "Proclamation Fee",
-          "name": "$100k fee (NEW petitions from outside US only)",
-          "fee": 100000,
+          "name": "$100k fee (from outside US only - most are EXEMPT)",
+          "fee": 0,
           "filed_by": "Employer",
           "processing": "N/A",
-          "note": "EXEMPT: change of status, extensions, amendments"
+          "note": "Only applies if filing from outside US without existing H-1B. EXEMPT: change of status from OPT/F-1/TN, extensions, amendments. If applicable, pay $100,000 via pay.gov before filing."
         }
       ],
       "stats": {
@@ -176,9 +176,9 @@
       },
       "tips": [
         "Register in March for April lottery (if subject to cap)",
-        "IMPORTANT: Change of status from OPT/F-1/TN is EXEMPT from $100k fee",
         "6-year limit, but extendable if I-140 approved or PERM pending >365 days",
-        "Canadians: Consider TN first, then change to H-1B to avoid $100k fee"
+        "Change of status from OPT/F-1/TN is EXEMPT from $100k proclamation fee",
+        "$100k fee only applies to petitions from OUTSIDE the US without valid H-1B"
       ]
     },
     "o1": {
@@ -388,7 +388,7 @@
       "shortName": "PERM",
       "fullName": "Labor Certification (ETA-9089)",
       "category": "greencard",
-      "description": "Labor certification proving no qualified US workers available. DOL currently processing August 2024 cases.",
+      "description": "Labor certification proving no qualified US workers available. Processing times vary - check DOL FLAG for current status.",
       "requirements": [
         "Completed recruitment with no qualified US applicants",
         "Valid prevailing wage determination",
@@ -482,10 +482,11 @@
         },
         {
           "form": "Biometrics",
-          "name": "Biometric Services Fee",
-          "fee": 85,
+          "name": "Biometric Services (included in I-485 fee)",
+          "fee": 0,
           "filed_by": "You",
-          "processing": "N/A"
+          "processing": "N/A",
+          "note": "Separate biometrics fee eliminated April 2024"
         },
         {
           "form": "I-765",
@@ -517,7 +518,7 @@
         "source": "USCIS FY2023"
       },
       "tips": [
-        "File I-765 (EAD) and I-131 (AP) with I-485 - no extra fee",
+        "File I-765 (EAD) and I-131 (AP) concurrently with I-485",
         "EAD/AP combo card lets you work and travel while pending",
         "Can change employers after 180 days pending (AC21 portability)"
       ]
