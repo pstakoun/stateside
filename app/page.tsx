@@ -117,12 +117,56 @@ export default function Home() {
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200 px-6 py-3 flex-shrink-0">
-        <div className="max-w-7xl mx-auto text-xs text-gray-500 text-center">
-          Live data from DOL, USCIS, and State Dept. Timelines are estimates. Consult an immigration attorney for your situation.
+      {/* Footer with SEO content */}
+      <footer className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex-shrink-0">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-xs text-gray-500 text-center mb-3">
+            Live data from DOL, USCIS, and State Dept. Timelines are estimates. Consult an immigration attorney for your situation.
+          </p>
+
+          {/* SEO-friendly content - visible but subtle */}
+          <div className="text-xs text-gray-400 text-center space-y-1">
+            <p>
+              <strong className="text-gray-500">Stateside</strong> helps you find your fastest path to a US green card.
+            </p>
+            <p>
+              Compare H-1B, TN, L-1, O-1 visa timelines • EB-1, EB-2, EB-3 employment-based green cards • NIW self-petition
+            </p>
+            <p>
+              Live USCIS processing times • Visa bulletin priority dates • India &amp; China backlog estimates
+            </p>
+          </div>
         </div>
       </footer>
+
+      {/* Screen reader only - detailed description for accessibility and AI crawlers */}
+      <div className="sr-only" aria-label="About Stateside">
+        <h2>What is Stateside?</h2>
+        <p>
+          Stateside is a free interactive tool that helps immigrants find their fastest path to a US green card.
+          It shows personalized immigration pathways based on your current visa status, education, work experience,
+          and country of birth.
+        </p>
+        <h3>Features</h3>
+        <ul>
+          <li>Live USCIS processing times updated daily</li>
+          <li>Visa bulletin priority dates from the Department of State</li>
+          <li>DOL PERM labor certification timelines</li>
+          <li>H-1B, TN, L-1, O-1 work visa pathways</li>
+          <li>EB-1, EB-2, EB-3 employment-based green card timelines</li>
+          <li>EB-2 NIW (National Interest Waiver) eligibility</li>
+          <li>Marriage-based green card timelines</li>
+          <li>India and China green card backlog estimates</li>
+          <li>Concurrent filing eligibility checker</li>
+          <li>Priority date portability calculator</li>
+        </ul>
+        <h3>Who is this for?</h3>
+        <p>
+          Stateside is designed for professionals on H-1B, TN, L-1, O-1 visas, F-1 students on OPT,
+          and anyone exploring US immigration options. It helps you understand your green card timeline
+          before consulting with an immigration attorney.
+        </p>
+      </div>
     </main>
   );
 }
