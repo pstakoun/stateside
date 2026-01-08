@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
 import { generatePaths, ComposedStage, setProcessingTimes } from "@/lib/path-composer";
@@ -81,10 +81,16 @@ export default function TimelineChart({
     return generatedPaths;
   }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates, datesForFiling]);
 
-  // Track paths generated for analytics
+  // Track paths generated for analytics (debounced to avoid duplicate events)
+  const lastTrackedFilters = useRef<string>("");
   useEffect(() => {
     if (paths.length > 0) {
-      trackPathsGenerated(paths.length, filters);
+      // Create a simple hash of filter values to detect actual changes
+      const filterHash = `${filters.education}-${filters.experience}-${filters.countryOfBirth}-${paths.length}`;
+      if (filterHash !== lastTrackedFilters.current) {
+        lastTrackedFilters.current = filterHash;
+        trackPathsGenerated(paths.length, filters);
+      }
     }
   }, [paths.length, filters]);
 

@@ -1,9 +1,14 @@
 import posthog from "posthog-js";
 import { FilterState } from "./filter-paths";
 
-// Check if PostHog is available
+// Check if PostHog is available and initialized
 function isPostHogAvailable(): boolean {
-  return typeof window !== "undefined" && typeof posthog !== "undefined" && posthog.__loaded;
+  return (
+    typeof window !== "undefined" &&
+    typeof posthog !== "undefined" &&
+    typeof posthog.capture === "function" &&
+    posthog.__loaded === true
+  );
 }
 
 // Track when user completes onboarding quiz
