@@ -9,7 +9,9 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     // Only initialize in browser and if API key is set
     if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
       posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+        // Use our domain proxy to avoid ad blockers (Brave, Firefox, etc.)
+        api_host: "/ingest",
+        ui_host: "https://us.i.posthog.com",
         person_profiles: "identified_only",
         capture_pageview: true,
         capture_pageleave: true,
