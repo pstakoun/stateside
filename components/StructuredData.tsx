@@ -27,13 +27,7 @@ export function WebsiteStructuredData() {
       "India and China backlog estimates",
     ],
     screenshot: "https://stateside.app/opengraph-image",
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "100",
-      bestRating: "5",
-      worstRating: "1",
-    },
+    // Note: Only add aggregateRating when you have real user reviews
   };
 
   return (
@@ -109,12 +103,8 @@ export function OrganizationStructuredData() {
     logo: "https://stateside.app/icon.svg",
     description:
       "Interactive US immigration pathway tool with live USCIS data",
-    foundingDate: "2024",
-    sameAs: [
-      // Add social links when available
-      // "https://twitter.com/statesideapp",
-      // "https://linkedin.com/company/stateside",
-    ],
+    // Add social links when available:
+    // sameAs: ["https://twitter.com/statesideapp", "https://linkedin.com/company/stateside"],
   };
 
   return (
