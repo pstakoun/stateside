@@ -2,7 +2,12 @@
 // This module provides adapters between DynamicData and the internal ProcessingTimes format
 
 import { DynamicData } from "./dynamic-data";
-import { CountryOfBirth } from "./filter-paths";
+import { CountryOfBirth, EBCategory } from "./filter-paths";
+import { 
+  calculateVelocityBasedWait, 
+  VelocityData,
+  calculateVelocity 
+} from "./perm-velocity";
 
 export interface USCISFormTimes {
   serviceCenter: string;
@@ -202,6 +207,7 @@ export function formatMonths(min: number, max: number): string {
 
 // Calculate months of backlog from a priority date string
 // Returns 0 for "Current", otherwise calculates months from priority date to today
+// NOTE: This returns raw backlog months - use calculateNewFilerWait() for actual wait estimate
 export function calculatePriorityDateWait(priorityDateStr: string): number {
   const trimmed = priorityDateStr.trim().toLowerCase();
   if (trimmed === "current" || trimmed === "c") {
@@ -232,6 +238,62 @@ export function calculatePriorityDateWait(priorityDateStr: string): number {
     (today.getMonth() - priorityDate.getMonth());
 
   return Math.max(0, diffMonths);
+}
+
+// Calculate estimated wait for new filers (those who don't have an I-140 yet)
+// Uses PERM velocity data for more accurate estimates
+// For new filers: their PD will be today's date, so they need to wait for today to become current
+export function calculateNewFilerWait(
+  priorityDateStr: string,
+  countryOfBirth: CountryOfBirth,
+  category?: EBCategory
+): WaitCalculationResult {
+  const trimmed = priorityDateStr.trim().toLowerCase();
+  if (trimmed === "current" || trimmed === "c") {
+    return {
+      estimatedMonths: 0,
+      rangeMin: 0,
+      rangeMax: 0,
+      confidence: 1,
+      velocityData: {
+        bulletinAdvancementMonthsPerYear: 12,
+        velocityRatio: 0,
+        waitMultiplier: 1,
+        confidence: 1,
+        explanation: "Category is current - no wait expected for new filers.",
+      },
+    };
+  }
+  
+  // Get the raw backlog (months from cutoff to today)
+  const backlogMonths = calculatePriorityDateWait(priorityDateStr);
+  
+  // For new filers, their PD will be approximately today's date
+  // So they need to wait for the backlog to clear plus the time for today to become current
+  const today = new Date();
+  const effectiveCategory = category || "eb2";
+  
+  // Create a synthetic "today" priority date
+  const todayPD = {
+    month: today.getMonth() + 1,
+    year: today.getFullYear(),
+  };
+  
+  // Use velocity-based calculation
+  const velocityResult = calculateVelocityBasedWait(
+    todayPD,
+    priorityDateStr,
+    effectiveCategory,
+    countryOfBirth
+  );
+  
+  return {
+    estimatedMonths: velocityResult.estimatedMonths,
+    rangeMin: velocityResult.rangeMin,
+    rangeMax: velocityResult.rangeMax,
+    confidence: velocityResult.confidence,
+    velocityData: velocityResult.velocityData,
+  };
 }
 
 // Get priority date string for a GC category and country from visa bulletin data
@@ -287,58 +349,83 @@ export function formatPriorityWait(months: number): string {
   return `~${years} years`;
 }
 
+// Extended wait calculation result with velocity data
+export interface WaitCalculationResult {
+  estimatedMonths: number;
+  rangeMin: number;
+  rangeMax: number;
+  confidence: number;
+  velocityData: VelocityData;
+}
+
 // Calculate wait time for a user's existing priority date against visa bulletin
+// Uses PERM-based velocity calculation for more accurate estimates
 // Returns 0 if current, otherwise estimated months to wait
 export function calculateWaitForExistingPD(
   userPriorityDate: { month: number; year: number },
   visaBulletinCutoff: string,
-  countryOfBirth: CountryOfBirth
+  countryOfBirth: CountryOfBirth,
+  category?: EBCategory
 ): number {
+  // Use the new velocity-based calculation
+  const result = calculateWaitForExistingPDWithVelocity(
+    userPriorityDate,
+    visaBulletinCutoff,
+    countryOfBirth,
+    category
+  );
+  return result.estimatedMonths;
+}
+
+// Extended version that returns full velocity data
+export function calculateWaitForExistingPDWithVelocity(
+  userPriorityDate: { month: number; year: number },
+  visaBulletinCutoff: string,
+  countryOfBirth: CountryOfBirth,
+  category?: EBCategory
+): WaitCalculationResult {
   // If visa bulletin shows "Current", no wait
   const trimmed = visaBulletinCutoff.trim().toLowerCase();
   if (trimmed === "current" || trimmed === "c") {
-    return 0;
+    return {
+      estimatedMonths: 0,
+      rangeMin: 0,
+      rangeMax: 0,
+      confidence: 1,
+      velocityData: {
+        bulletinAdvancementMonthsPerYear: 12,
+        velocityRatio: 0,
+        waitMultiplier: 1,
+        confidence: 1,
+        explanation: "Category is current - no wait required.",
+      },
+    };
   }
 
-  // Parse visa bulletin cutoff date
-  const shortMonths: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  // Default category based on common cases
+  const effectiveCategory = category || "eb2";
+  
+  // Use the new velocity-based calculation from perm-velocity.ts
+  const velocityResult = calculateVelocityBasedWait(
+    userPriorityDate,
+    visaBulletinCutoff,
+    effectiveCategory,
+    countryOfBirth
+  );
+  
+  return {
+    estimatedMonths: velocityResult.estimatedMonths,
+    rangeMin: velocityResult.rangeMin,
+    rangeMax: velocityResult.rangeMax,
+    confidence: velocityResult.confidence,
+    velocityData: velocityResult.velocityData,
   };
+}
 
-  const parts = visaBulletinCutoff.split(" ");
-  if (parts.length !== 2) return 0;
-
-  const monthName = parts[0].toLowerCase().slice(0, 3);
-  const year = parseInt(parts[1], 10);
-  const monthNum = shortMonths[monthName];
-
-  if (monthNum === undefined || isNaN(year)) return 0;
-
-  const bulletinDate = new Date(year, monthNum, 1);
-  const userDate = new Date(userPriorityDate.year, userPriorityDate.month - 1, 1);
-
-  // If user's PD is on or before the bulletin cutoff, they're current
-  if (userDate <= bulletinDate) {
-    return 0;
-  }
-
-  // User's PD is after the cutoff - calculate how far behind
-  const monthsBehind =
-    (userDate.getFullYear() - bulletinDate.getFullYear()) * 12 +
-    (userDate.getMonth() - bulletinDate.getMonth());
-
-  // Estimate wait time based on country
-  // India/China: bulletin moves very slowly (~1-2 months per year)
-  // Other countries: usually current or move quickly
-  if (countryOfBirth === "india") {
-    // India EB-2/EB-3: roughly 1 month bulletin movement per year
-    return monthsBehind * 12; // Each month behind = ~1 year wait
-  } else if (countryOfBirth === "china") {
-    // China: moves faster than India but still slow
-    return monthsBehind * 6; // Each month behind = ~6 months wait
-  } else {
-    // ROW: usually current, but if backlogged, moves ~1:1
-    return monthsBehind;
-  }
+// Get velocity data for display purposes (without needing a priority date)
+export function getVelocityForCategory(
+  category: EBCategory,
+  countryOfBirth: CountryOfBirth
+): VelocityData {
+  return calculateVelocity(category, countryOfBirth);
 }

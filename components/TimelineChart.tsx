@@ -287,17 +287,60 @@ export default function TimelineChart({
 
                           {/* Tooltip on hover */}
                           {isHovered && (
-                            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap z-40 max-w-xs">
-                              <div className="font-semibold">Priority Date Backlog</div>
-                              <div className="text-gray-300">Wait: {stage.durationYears.display}</div>
+                            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg z-40 max-w-sm">
+                              {/* Determine if this is filing or approval wait based on note */}
+                              {stage.note?.includes("Filing") || stage.note?.includes("Dates for Filing") ? (
+                                <>
+                                  <div className="font-semibold text-blue-400">📝 Filing Wait</div>
+                                  <div className="text-gray-400 text-[10px] mb-1">
+                                    Wait until you can FILE I-485
+                                  </div>
+                                </>
+                              ) : stage.note?.includes("Final Action") || stage.note?.includes("approval") ? (
+                                <>
+                                  <div className="font-semibold text-green-400">✅ Approval Wait</div>
+                                  <div className="text-gray-400 text-[10px] mb-1">
+                                    I-485 pending. EAD/AP valid. Waiting for visa availability.
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="font-semibold">Priority Date Wait</div>
+                              )}
+                              <div className="text-gray-300">
+                                Estimated: {stage.durationYears.display}
+                                {stage.velocityInfo && stage.velocityInfo.rangeMin !== stage.velocityInfo.rangeMax && (
+                                  <span className="text-gray-400 text-[10px] ml-1">
+                                    (range: {Math.round(stage.velocityInfo.rangeMin / 12)}-{Math.round(stage.velocityInfo.rangeMax / 12)} yr)
+                                  </span>
+                                )}
+                              </div>
                               {stage.priorityDateStr && (
                                 <div className="text-gray-400 text-[10px] mt-0.5">
-                                  Current priority date: {stage.priorityDateStr}
+                                  Visa bulletin cutoff: {stage.priorityDateStr}
                                 </div>
                               )}
-                              <div className="text-gray-400 text-[10px] mt-0.5">
-                                Based on Visa Bulletin data
-                              </div>
+                              {stage.velocityInfo && (
+                                <>
+                                  <div className="text-amber-400 text-[10px] mt-1.5 leading-relaxed whitespace-normal">
+                                    {stage.velocityInfo.explanation}
+                                  </div>
+                                  <div className="text-gray-500 text-[9px] mt-1 flex items-center gap-1">
+                                    <span>📊</span>
+                                    <span>Based on historical visa bulletin movement</span>
+                                  </div>
+                                  {stage.velocityInfo.confidence < 0.7 && (
+                                    <div className="text-gray-500 text-[9px] italic">
+                                      Estimate confidence: {Math.round(stage.velocityInfo.confidence * 100)}%
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {/* Benefits note for approval wait */}
+                              {(stage.note?.includes("Final Action") || stage.note?.includes("EAD")) && (
+                                <div className="text-green-400 text-[9px] mt-1.5 border-t border-gray-700 pt-1">
+                                  ✓ EAD (work permit) • ✓ Advance Parole (travel) • ✓ AC21 portability
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
