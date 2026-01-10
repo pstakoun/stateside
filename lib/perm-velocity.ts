@@ -212,55 +212,67 @@ export function estimateAnnualDemand(
 
 // ============== VELOCITY CALCULATION ==============
 
+// Historical visa bulletin advancement rates (months of PD advancement per year)
+// Based on actual visa bulletin movement over past 5 years
+// These are more reliable than pure PERM-based calculations
+const HISTORICAL_BULLETIN_ADVANCEMENT: Record<EBCategory, Record<"india" | "china" | "other", number>> = {
+  eb1: {
+    india: 8,    // EB-1 India moves ~8 months per year
+    china: 6,    // EB-1 China moves ~6 months per year  
+    other: 12,   // EB-1 ROW is usually current
+  },
+  eb2: {
+    india: 4,    // EB-2 India moves ~4 months per year (historically 1-2 weeks/month)
+    china: 6,    // EB-2 China moves ~6 months per year
+    other: 12,   // EB-2 ROW is usually current or fast
+  },
+  eb3: {
+    india: 3,    // EB-3 India moves ~3 months per year (very slow)
+    china: 5,    // EB-3 China moves ~5 months per year
+    other: 10,   // EB-3 ROW usually has some backlog but moves well
+  },
+};
+
 /**
  * Calculate the velocity ratio for a category/country combination
- * Velocity > 1 means backlog is growing
- * Velocity < 1 means backlog is shrinking
+ * Uses historical bulletin movement rates which are more accurate than
+ * pure PERM demand calculations
  */
 export function calculateVelocity(
   category: EBCategory,
   countryOfBirth: CountryOfBirth
 ): VelocityData {
-  const demand = estimateAnnualDemand(category, countryOfBirth);
-  const supply = getEffectiveVisaAvailability(category, countryOfBirth);
+  // Get empirical bulletin advancement rate
+  const countryKey = (countryOfBirth === "india" || countryOfBirth === "china") 
+    ? countryOfBirth 
+    : "other";
   
-  const velocityRatio = demand / supply;
+  const bulletinAdvancementMonthsPerYear = HISTORICAL_BULLETIN_ADVANCEMENT[category][countryKey];
   
-  // Calculate bulletin advancement rate
-  // This is how many months of priority date the visa bulletin advances per year
-  let bulletinAdvancementMonthsPerYear: number;
-  
-  if (velocityRatio <= 1) {
-    // Demand is less than supply - should be current or advancing quickly
-    bulletinAdvancementMonthsPerYear = 12; // Full year advancement per year
-  } else {
-    // Demand exceeds supply - bulletin advances slowly
-    // The higher the velocity ratio, the slower the advancement
-    bulletinAdvancementMonthsPerYear = 12 / velocityRatio;
-  }
+  // Calculate velocity ratio (12 months / actual advancement = how many years per year of backlog)
+  const velocityRatio = 12 / bulletinAdvancementMonthsPerYear;
   
   // Wait multiplier: how many months you wait per month behind the cutoff
-  // If bulletin advances 1 month per year, each month behind = 12 months wait
-  const waitMultiplier = 12 / bulletinAdvancementMonthsPerYear;
+  const waitMultiplier = velocityRatio;
   
   // Confidence based on data quality and volatility
-  let confidence = 0.7; // Base confidence
+  let confidence = 0.75; // Base confidence
   if (countryOfBirth === "india") {
-    confidence = 0.8; // More data available for India
+    confidence = 0.8; // Most predictable due to consistent patterns
   } else if (countryOfBirth === "china") {
-    confidence = 0.75;
+    confidence = 0.7; // Some volatility
   } else {
-    confidence = 0.6; // Less predictable for ROW
+    confidence = 0.6; // ROW can be unpredictable
   }
   
-  // Generate explanation
+  // Generate explanation based on advancement rate
   let explanation: string;
-  if (velocityRatio > 3) {
-    explanation = `Severe backlog: ${Math.round(demand).toLocaleString()} people/year competing for ${Math.round(supply).toLocaleString()} visas. Bulletin advances ~${bulletinAdvancementMonthsPerYear.toFixed(1)} months/year.`;
-  } else if (velocityRatio > 1.5) {
-    explanation = `Growing backlog: demand (${Math.round(demand).toLocaleString()}/yr) exceeds supply (${Math.round(supply).toLocaleString()}/yr). Bulletin advances ~${bulletinAdvancementMonthsPerYear.toFixed(1)} months/year.`;
-  } else if (velocityRatio > 1) {
-    explanation = `Slight backlog growth. Bulletin advances ~${bulletinAdvancementMonthsPerYear.toFixed(1)} months/year.`;
+  if (bulletinAdvancementMonthsPerYear <= 3) {
+    explanation = `Severe backlog: visa bulletin advances only ~${bulletinAdvancementMonthsPerYear} months/year. Each month behind = ~${velocityRatio.toFixed(0)} month wait.`;
+  } else if (bulletinAdvancementMonthsPerYear <= 6) {
+    explanation = `Significant backlog: visa bulletin advances ~${bulletinAdvancementMonthsPerYear} months/year.`;
+  } else if (bulletinAdvancementMonthsPerYear < 12) {
+    explanation = `Moderate backlog: visa bulletin advances ~${bulletinAdvancementMonthsPerYear} months/year.`;
   } else {
     explanation = `Category is current or nearly current. No significant wait expected.`;
   }
@@ -357,26 +369,39 @@ export function calculateVelocityBasedWait(
   const velocityData = calculateVelocity(category, countryOfBirth);
   
   // Calculate estimated wait
-  const estimatedMonths = Math.round(monthsBehind * velocityData.waitMultiplier);
+  let estimatedMonths = Math.round(monthsBehind * velocityData.waitMultiplier);
   
-  // Calculate range (±20% based on confidence)
+  // Cap at reasonable maximum (50 years = 600 months)
+  // Beyond this, it's effectively "indefinite" and unpredictable
+  const MAX_WAIT_MONTHS = 600;
+  const isCapped = estimatedMonths > MAX_WAIT_MONTHS;
+  if (isCapped) {
+    estimatedMonths = MAX_WAIT_MONTHS;
+  }
+  
+  // Calculate range (±20% based on confidence, but also capped)
   const uncertainty = (1 - velocityData.confidence) * 0.5;
-  const rangeMin = Math.round(estimatedMonths * (1 - uncertainty));
-  const rangeMax = Math.round(estimatedMonths * (1 + uncertainty));
+  let rangeMin = Math.round(estimatedMonths * (1 - uncertainty));
+  let rangeMax = Math.round(estimatedMonths * (1 + uncertainty));
   
-  // Generate explanation based on ACTUAL wait, not just velocity ratio
-  // This overrides the generic explanation from calculateVelocity
+  // Cap the range too
+  rangeMin = Math.min(rangeMin, MAX_WAIT_MONTHS);
+  rangeMax = Math.min(rangeMax, MAX_WAIT_MONTHS);
+  
+  // Generate explanation based on ACTUAL wait
   const years = Math.round(estimatedMonths / 12);
   let explanation: string;
   
   if (estimatedMonths <= 6) {
-    explanation = `Short wait expected. Bulletin advances ~${velocityData.bulletinAdvancementMonthsPerYear.toFixed(1)} months/year for this category.`;
+    explanation = `Short wait expected. Bulletin advances ~${velocityData.bulletinAdvancementMonthsPerYear} months/year.`;
   } else if (estimatedMonths <= 24) {
-    explanation = `Moderate backlog: ~${monthsBehind} months behind current cutoff. Bulletin advances ~${velocityData.bulletinAdvancementMonthsPerYear.toFixed(1)} months/year.`;
-  } else if (estimatedMonths <= 60) {
-    explanation = `Significant backlog: ~${monthsBehind} months behind cutoff. At current pace (~${velocityData.bulletinAdvancementMonthsPerYear.toFixed(1)} mo/yr), expect ~${years} year wait.`;
+    explanation = `Moderate backlog: ~${monthsBehind} months behind cutoff. Bulletin advances ~${velocityData.bulletinAdvancementMonthsPerYear} mo/yr.`;
+  } else if (estimatedMonths <= 120) {
+    explanation = `Significant backlog: ~${Math.round(monthsBehind / 12)} years behind. At ~${velocityData.bulletinAdvancementMonthsPerYear} mo/yr advancement, expect ~${years} year wait.`;
+  } else if (isCapped) {
+    explanation = `Extreme backlog: ${Math.round(monthsBehind / 12)}+ years behind cutoff. Wait time is effectively indefinite (50+ years). Consider alternative paths.`;
   } else {
-    explanation = `Severe backlog: ~${monthsBehind} months behind cutoff. Bulletin advancing only ~${velocityData.bulletinAdvancementMonthsPerYear.toFixed(1)} months/year. ~${years}+ year wait expected.`;
+    explanation = `Severe backlog: ~${Math.round(monthsBehind / 12)} years behind. Bulletin advances ~${velocityData.bulletinAdvancementMonthsPerYear} mo/yr. ~${years}+ year wait.`;
   }
   
   // Update velocity data with the correct explanation
@@ -387,7 +412,7 @@ export function calculateVelocityBasedWait(
   
   return {
     estimatedMonths,
-    confidence: velocityData.confidence,
+    confidence: isCapped ? 0.3 : velocityData.confidence, // Lower confidence if capped
     velocityData: updatedVelocityData,
     rangeMin,
     rangeMax,
