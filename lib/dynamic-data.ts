@@ -1,8 +1,16 @@
 // Comprehensive dynamic data fetching from official sources
 // Sources:
 // - DOL FLAG: flag.dol.gov/processingtimes (PWD, PERM times)
+// - DOL PERM Disclosure: dol.gov/agencies/eta/foreign-labor/performance (PERM certifications)
 // - USCIS via GitHub: jzebedee/uscis daily SQLite releases
 // - Visa Bulletin: travel.state.gov (priority dates)
+
+import { 
+  getPERMStatistics, 
+  calculateVelocity, 
+  PERMStatistics, 
+  VelocityData 
+} from "./perm-velocity";
 
 export interface DynamicData {
   lastUpdated: string;
@@ -45,6 +53,16 @@ export interface DynamicData {
     i907: number;
     asylumFee: number;
     biometrics: number;
+  };
+  // PERM-based velocity data for more accurate wait time calculations
+  permVelocity: {
+    statistics: PERMStatistics;
+    velocityByCategory: {
+      eb1: { india: VelocityData; china: VelocityData; other: VelocityData };
+      eb2: { india: VelocityData; china: VelocityData; other: VelocityData };
+      eb3: { india: VelocityData; china: VelocityData; other: VelocityData };
+    };
+    lastUpdated: string;
   };
 }
 
@@ -300,6 +318,27 @@ function getCurrentFees(): DynamicData["fees"] {
   };
 }
 
+// Calculate velocity data for all category/country combinations
+function calculateAllVelocityData(): DynamicData["permVelocity"]["velocityByCategory"] {
+  return {
+    eb1: {
+      india: calculateVelocity("eb1", "india"),
+      china: calculateVelocity("eb1", "china"),
+      other: calculateVelocity("eb1", "other"),
+    },
+    eb2: {
+      india: calculateVelocity("eb2", "india"),
+      china: calculateVelocity("eb2", "china"),
+      other: calculateVelocity("eb2", "other"),
+    },
+    eb3: {
+      india: calculateVelocity("eb3", "india"),
+      china: calculateVelocity("eb3", "china"),
+      other: calculateVelocity("eb3", "other"),
+    },
+  };
+}
+
 // Main fetch function - gets all dynamic data
 export async function fetchAllDynamicData(): Promise<DynamicData> {
   const now = new Date().toISOString();
@@ -310,6 +349,10 @@ export async function fetchAllDynamicData(): Promise<DynamicData> {
     fetchVisaBulletin(),
     fetchUSCISFromGitHub(),
   ]);
+
+  // Get PERM statistics and calculate velocity data
+  const permStatistics = getPERMStatistics();
+  const velocityByCategory = calculateAllVelocityData();
 
   return {
     lastUpdated: now,
@@ -333,6 +376,12 @@ export async function fetchAllDynamicData(): Promise<DynamicData> {
     // Dates for Filing - when you can SUBMIT I-485 (usually more current)
     datesForFiling: visaBulletinData.datesForFiling,
     fees: getCurrentFees(),
+    // PERM velocity data for accurate wait time calculations
+    permVelocity: {
+      statistics: permStatistics,
+      velocityByCategory,
+      lastUpdated: permStatistics.lastUpdated,
+    },
   };
 }
 

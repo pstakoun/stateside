@@ -1,6 +1,7 @@
 import { FilterState, CurrentStatus, Education, Experience, isTNEligible, priorityDateToString } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
-import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait, calculateWaitForExistingPD } from "./processing-times";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait, calculateWaitForExistingPD, calculateWaitForExistingPDWithVelocity, WaitCalculationResult, getVelocityForCategory, calculateNewFilerWait } from "./processing-times";
+import { EBCategory } from "./filter-paths";
 import { DynamicData } from "./dynamic-data";
 
 // Current processing times (can be updated dynamically)
@@ -160,6 +161,15 @@ export interface ComposedStage {
   isConcurrent?: boolean; // true if this stage runs concurrently with the previous stage
   isPriorityWait?: boolean; // true if this is a priority date wait stage
   priorityDateStr?: string; // the priority date string (e.g., "Jul 2013")
+  // Velocity data for priority date wait stages
+  velocityInfo?: {
+    bulletinAdvancementMonthsPerYear: number;
+    velocityRatio: number;
+    explanation: string;
+    rangeMin: number;
+    rangeMax: number;
+    confidence: number;
+  };
 }
 
 // Education ranking for comparisons
@@ -169,6 +179,15 @@ const EDUCATION_RANK: Record<Education, number> = {
   masters: 2,
   phd: 3,
 };
+
+// Convert GC category string (e.g., "EB-2", "EB-3") to EBCategory type
+function gcCategoryToEBCategory(gcCategory: string): EBCategory | undefined {
+  const normalized = gcCategory.toLowerCase().replace(/[- ]/g, "");
+  if (normalized.includes("eb1")) return "eb1";
+  if (normalized.includes("eb2")) return "eb2";
+  if (normalized.includes("eb3")) return "eb3";
+  return undefined; // Marriage-based, EB-5, etc.
+}
 
 const EXPERIENCE_RANK: Record<Experience, number> = {
   lt2: 0,
@@ -707,12 +726,16 @@ function composePath(
   let priorityWaitMonths = 0;
   let priorityDateStr = "Current";
   let canFileConcurrently = true;
+  let velocityInfo: ComposedStage["velocityInfo"] | undefined;
 
   if (!gcMethod.fixedCategory?.includes("Marriage") && !gcMethod.fixedCategory?.includes("EB-5")) {
     // Determine filing eligibility using Dates for Filing chart
     const filingDates = datesForFiling || priorityDates; // Fall back to final action if no filing dates
     // Determine approval wait using Final Action Dates
     const approvalDates = priorityDates;
+
+    // Convert gcCategory to EBCategory for velocity calculations
+    const ebCategory = gcCategoryToEBCategory(gcCategory);
 
     if (filters.hasApprovedI140 && filters.existingPriorityDate) {
       priorityDateStr = priorityDateToString(filters.existingPriorityDate);
@@ -723,24 +746,52 @@ function composePath(
         const filingWait = calculateWaitForExistingPD(
           filters.existingPriorityDate,
           filingCutoff,
-          filters.countryOfBirth
+          filters.countryOfBirth,
+          ebCategory
         );
         canFileConcurrently = filingWait === 0;
       }
 
       // Calculate wait for approval (using Final Action Dates)
+      // Use velocity-based calculation for more accurate estimates
       if (approvalDates) {
         const approvalCutoff = getPriorityDateForPath(approvalDates, gcCategory, filters.countryOfBirth);
-        priorityWaitMonths = calculateWaitForExistingPD(
+        const waitResult = calculateWaitForExistingPDWithVelocity(
           filters.existingPriorityDate,
           approvalCutoff,
-          filters.countryOfBirth
+          filters.countryOfBirth,
+          ebCategory
         );
+        priorityWaitMonths = waitResult.estimatedMonths;
+        velocityInfo = {
+          bulletinAdvancementMonthsPerYear: waitResult.velocityData.bulletinAdvancementMonthsPerYear,
+          velocityRatio: waitResult.velocityData.velocityRatio,
+          explanation: waitResult.velocityData.explanation,
+          rangeMin: waitResult.rangeMin,
+          rangeMax: waitResult.rangeMax,
+          confidence: waitResult.confidence,
+        };
       }
     } else if (approvalDates) {
       // No existing PD - calculate from visa bulletin (new filing)
+      // Use velocity-based calculation for more accurate estimates
       priorityDateStr = getPriorityDateForPath(approvalDates, gcCategory, filters.countryOfBirth);
-      priorityWaitMonths = calculatePriorityDateWait(priorityDateStr);
+      
+      // Use the new velocity-based calculation for new filers
+      const newFilerWait = calculateNewFilerWait(
+        priorityDateStr,
+        filters.countryOfBirth,
+        ebCategory
+      );
+      priorityWaitMonths = newFilerWait.estimatedMonths;
+      velocityInfo = {
+        bulletinAdvancementMonthsPerYear: newFilerWait.velocityData.bulletinAdvancementMonthsPerYear,
+        velocityRatio: newFilerWait.velocityData.velocityRatio,
+        explanation: newFilerWait.velocityData.explanation,
+        rangeMin: newFilerWait.rangeMin,
+        rangeMax: newFilerWait.rangeMax,
+        confidence: newFilerWait.confidence,
+      };
 
       // For new filers, check Dates for Filing for concurrent eligibility
       if (filingDates) {
@@ -768,12 +819,12 @@ function composePath(
       const waitStartYear = i140Stage.startYear + i140Stage.durationYears.max;
       const waitYears = priorityWaitMonths / 12;
 
-      // Insert priority wait stage
+      // Insert priority wait stage with velocity information
       const priorityWaitStage: ComposedStage = {
         nodeId: "priority_wait",
         durationYears: {
-          min: waitYears,
-          max: waitYears,
+          min: velocityInfo?.rangeMin ? velocityInfo.rangeMin / 12 : waitYears,
+          max: velocityInfo?.rangeMax ? velocityInfo.rangeMax / 12 : waitYears,
           display: formatPriorityWait(priorityWaitMonths),
         },
         track: "gc",
@@ -781,6 +832,7 @@ function composePath(
         note: `Wait until ${priorityDateStr} is current for filing`,
         isPriorityWait: true,
         priorityDateStr,
+        velocityInfo,
       };
 
       // Insert after I-140 (before I-485)

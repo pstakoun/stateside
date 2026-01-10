@@ -287,17 +287,42 @@ export default function TimelineChart({
 
                           {/* Tooltip on hover */}
                           {isHovered && (
-                            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap z-40 max-w-xs">
-                              <div className="font-semibold">Priority Date Backlog</div>
-                              <div className="text-gray-300">Wait: {stage.durationYears.display}</div>
+                            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg z-40 max-w-sm">
+                              <div className="font-semibold">Priority Date Wait</div>
+                              <div className="text-gray-300">
+                                Estimated: {stage.durationYears.display}
+                                {stage.velocityInfo && stage.velocityInfo.rangeMin !== stage.velocityInfo.rangeMax && (
+                                  <span className="text-gray-400 text-[10px] ml-1">
+                                    (range: {Math.round(stage.velocityInfo.rangeMin / 12)}-{Math.round(stage.velocityInfo.rangeMax / 12)} yr)
+                                  </span>
+                                )}
+                              </div>
                               {stage.priorityDateStr && (
                                 <div className="text-gray-400 text-[10px] mt-0.5">
-                                  Current priority date: {stage.priorityDateStr}
+                                  Current visa bulletin cutoff: {stage.priorityDateStr}
                                 </div>
                               )}
-                              <div className="text-gray-400 text-[10px] mt-0.5">
-                                Based on Visa Bulletin data
-                              </div>
+                              {stage.velocityInfo && (
+                                <>
+                                  <div className="text-amber-400 text-[10px] mt-1.5 leading-relaxed whitespace-normal">
+                                    {stage.velocityInfo.explanation}
+                                  </div>
+                                  <div className="text-gray-500 text-[9px] mt-1 flex items-center gap-1">
+                                    <span>📊</span>
+                                    <span>Based on PERM certification data & visa allocation</span>
+                                  </div>
+                                  {stage.velocityInfo.confidence < 0.8 && (
+                                    <div className="text-gray-500 text-[9px] italic">
+                                      Estimate confidence: {Math.round(stage.velocityInfo.confidence * 100)}%
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {!stage.velocityInfo && (
+                                <div className="text-gray-400 text-[10px] mt-0.5">
+                                  Based on Visa Bulletin data
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
