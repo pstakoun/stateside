@@ -73,8 +73,9 @@ export default function Home() {
     const profile = getStoredProfile();
     const storedProgress = loadProgress();
     
+    let loadedFilters = profile?.filters || defaultFilters;
+    
     if (profile) {
-      setFilters(profile.filters);
       setShowOnboarding(false);
     } else {
       setShowOnboarding(true);
@@ -82,8 +83,23 @@ export default function Home() {
     
     if (storedProgress) {
       setTrackedPath(storedProgress);
+      
+      // Sync any ported PD to filters
+      if (storedProgress.portedPriorityDate) {
+        const [year, month] = storedProgress.portedPriorityDate.split("-").map(Number);
+        const category = storedProgress.portedPriorityDateCategory;
+        loadedFilters = {
+          ...loadedFilters,
+          hasApprovedI140: true,
+          existingPriorityDate: { year, month },
+          existingPriorityDateCategory: category === "eb1" ? "eb1" : 
+                                        category === "eb2" ? "eb2" : 
+                                        category === "eb3" ? "eb3" : null,
+        };
+      }
     }
     
+    setFilters(loadedFilters);
     setIsLoaded(true);
   }, []);
 
@@ -137,6 +153,9 @@ export default function Home() {
     setTrackedPath(newProgress);
   };
 
+  // Stages that establish priority dates
+  const PRIORITY_DATE_STAGES = ["i140", "perm", "eb2niw", "eb1a", "eb1b", "eb1c"];
+  
   // Handle updating a stage's progress
   const handleUpdateStage = (nodeId: string, update: Partial<StageProgress>) => {
     if (!trackedPath) return;
@@ -145,15 +164,40 @@ export default function Home() {
       if (!prev) return prev;
       
       const currentStage = prev.stages[nodeId] || { status: "not_started" };
+      const newStage = { ...currentStage, ...update };
+      
+      // Check if this is a PD-establishing stage being approved with a priority date
+      if (PRIORITY_DATE_STAGES.includes(nodeId) && 
+          newStage.status === "approved" && 
+          newStage.priorityDate) {
+        // Determine category based on path or stage
+        let category: string | null = null;
+        if (nodeId === "eb1a" || nodeId === "eb1b" || nodeId === "eb1c") {
+          category = "eb1";
+        } else if (nodeId === "eb2niw") {
+          category = "eb2";
+        } else {
+          // For I-140/PERM, infer from path name or use tracked category
+          if (prev.pathName?.toLowerCase().includes("eb-2") || prev.pathName?.toLowerCase().includes("eb2")) {
+            category = "eb2";
+          } else if (prev.pathName?.toLowerCase().includes("eb-3") || prev.pathName?.toLowerCase().includes("eb3")) {
+            category = "eb3";
+          } else if (prev.pathName?.toLowerCase().includes("eb-1") || prev.pathName?.toLowerCase().includes("eb1")) {
+            category = "eb1";
+          }
+        }
+        
+        // Only sync if we don't have a ported PD (ported takes precedence)
+        if (!prev.portedPriorityDate) {
+          syncPriorityDateToFilters(newStage.priorityDate, category);
+        }
+      }
       
       return {
         ...prev,
         stages: {
           ...prev.stages,
-          [nodeId]: {
-            ...currentStage,
-            ...update,
-          },
+          [nodeId]: newStage,
         },
         updatedAt: new Date().toISOString(),
       };
@@ -173,6 +217,43 @@ export default function Home() {
         updatedAt: new Date().toISOString(),
       };
     });
+    
+    // Sync to filters to update timeline calculation
+    syncPriorityDateToFilters(date, category);
+  };
+  
+  // Sync priority date to filters for timeline recalculation
+  const syncPriorityDateToFilters = (dateStr: string | null, category: string | null) => {
+    if (!dateStr) {
+      // Clear existing PD from filters
+      const newFilters = {
+        ...filters,
+        hasApprovedI140: false,
+        existingPriorityDate: null,
+        existingPriorityDateCategory: null,
+      };
+      setFilters(newFilters);
+      saveUserProfile(newFilters);
+      return;
+    }
+    
+    // Parse YYYY-MM-DD to PriorityDate format
+    const [year, month] = dateStr.split("-").map(Number);
+    const priorityDate = { year, month };
+    
+    // Map category string to EBCategory
+    const ebCategory = category === "eb1" ? "eb1" : 
+                       category === "eb2" ? "eb2" : 
+                       category === "eb3" ? "eb3" : null;
+    
+    const newFilters = {
+      ...filters,
+      hasApprovedI140: true,
+      existingPriorityDate: priorityDate,
+      existingPriorityDateCategory: ebCategory as "eb1" | "eb2" | "eb3" | null,
+    };
+    setFilters(newFilters);
+    saveUserProfile(newFilters);
   };
 
   // Handle stopping tracking
