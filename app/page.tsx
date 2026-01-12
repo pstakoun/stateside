@@ -428,28 +428,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Footer with SEO content */}
-      <footer className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex-shrink-0">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-xs text-gray-500 text-center mb-3">
-            Live data from DOL, USCIS, and State Dept. Timelines are estimates. Consult an immigration attorney for your situation.
-          </p>
-
-          {/* SEO-friendly content - visible but subtle */}
-          <div className="text-xs text-gray-400 text-center space-y-1">
-            <p>
-              <strong className="text-gray-500">Stateside</strong> helps you find your fastest path to a US green card.
-            </p>
-            <p>
-              Compare H-1B, TN, L-1, O-1 visa timelines • EB-1, EB-2, EB-3 employment-based green cards • NIW self-petition
-            </p>
-            <p>
-              Live USCIS processing times • Visa bulletin priority dates • India &amp; China backlog estimates
-            </p>
-          </div>
-        </div>
-      </footer>
-
       {/* Screen reader only - detailed description for accessibility and AI crawlers */}
       <div className="sr-only" aria-label="About Stateside">
         <h2>What is Stateside?</h2>

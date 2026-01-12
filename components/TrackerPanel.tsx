@@ -406,72 +406,50 @@ export default function TrackerPanel({
     return currentPathPD;
   }, [progress.portedPriorityDate, currentPathPD]);
 
-  // Calculate estimated completion date using path's actual timeline
+  // Calculate estimated completion date using path's actual totalYears
   const estimatedCompletion = useMemo(() => {
     const now = new Date();
-    let totalRemainingMonths = 0;
+    
+    // Start with path's total time (already includes PD wait calculated from ported PD)
+    const pathTotalMonths = (path.totalYears?.max || 0) * 12;
+    
+    // Calculate time already elapsed/completed
+    let completedMonths = 0;
     let hasUncertainty = false;
 
-    // Go through ALL stages (including PD wait) to calculate remaining time
     for (const stage of path.stages) {
-      // Skip the final GC marker
-      if (stage.nodeId === "gc") continue;
+      if (stage.nodeId === "gc" || stage.isPriorityWait) continue;
       
       const sp = progress.stages[stage.nodeId] || { status: "not_started" };
+      const stageDurationMonths = (stage.durationYears?.max || 0) * 12;
       
-      // For PD wait stages, use the path's calculated wait time
-      // This already accounts for ported PD via filters
-      if (stage.isPriorityWait) {
-        if (stage.durationYears?.max) {
-          totalRemainingMonths += stage.durationYears.max * 12;
-          hasUncertainty = true; // PD wait is always uncertain
-        }
-        continue;
-      }
-      
-      // For regular stages
       if (sp.status === "approved") {
-        // Already done - no time to add
-        continue;
+        // Fully completed
+        completedMonths += stageDurationMonths;
       } else if (sp.status === "filed" && sp.filedDate) {
-        // In progress - calculate remaining based on typical times
+        // Partially completed - calculate elapsed time
         const filedDate = parseDate(sp.filedDate);
-        const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
-        if (filedDate && typical) {
+        if (filedDate) {
           const elapsed = monthsBetween(filedDate, now);
-          const avgProcessing = (typical.min + typical.max) / 2;
-          totalRemainingMonths += Math.max(0, avgProcessing - elapsed);
-        } else if (stage.durationYears?.max) {
-          // Use path's estimate as fallback
-          totalRemainingMonths += stage.durationYears.max * 12 * 0.5; // Assume 50% done
-          hasUncertainty = true;
-        }
-      } else {
-        // Not started - use path's actual duration estimate
-        if (stage.durationYears?.max) {
-          // Use average of min and max
-          const avg = ((stage.durationYears.min || 0) + stage.durationYears.max) / 2;
-          totalRemainingMonths += avg * 12;
-        } else {
-          // Fallback to typical processing times
-          const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
-          if (typical) {
-            totalRemainingMonths += (typical.min + typical.max) / 2;
-          }
+          completedMonths += Math.min(elapsed, stageDurationMonths);
         }
       }
     }
 
+    // Remaining = total - completed
+    const remainingMonths = Math.max(0, pathTotalMonths - completedMonths);
+    hasUncertainty = path.stages.some(s => s.isPriorityWait);
+
     // Calculate estimated date
     const estimatedDate = new Date(now);
-    estimatedDate.setMonth(estimatedDate.getMonth() + Math.round(totalRemainingMonths));
+    estimatedDate.setMonth(estimatedDate.getMonth() + Math.round(remainingMonths));
 
     return {
       date: estimatedDate,
-      months: totalRemainingMonths,
+      months: remainingMonths,
       hasUncertainty,
     };
-  }, [path.stages, progress.stages]);
+  }, [path.totalYears, path.stages, progress.stages]);
 
   // Priority date aging benefit
   const pdAgingBenefit = useMemo(() => {

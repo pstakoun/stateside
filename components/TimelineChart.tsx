@@ -67,6 +67,31 @@ function formatDateShort(dateStr?: string): string {
   }
 }
 
+// Calculate months between two dates
+function monthsBetween(date1: Date, date2: Date): number {
+  const months = (date2.getFullYear() - date1.getFullYear()) * 12 +
+    (date2.getMonth() - date1.getMonth());
+  return Math.max(0, months);
+}
+
+// Parse YYYY-MM-DD to Date
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (isNaN(year) || isNaN(month)) return null;
+  return new Date(year, month - 1, day || 1);
+}
+
+// Calculate progress percentage for a filed stage
+function getFiledProgress(filedDate: string | undefined, durationMonths: number): number {
+  if (!filedDate) return 0;
+  const filed = parseDate(filedDate);
+  if (!filed) return 0;
+  const now = new Date();
+  const elapsed = monthsBetween(filed, now);
+  return Math.min(100, Math.max(0, (elapsed / durationMonths) * 100));
+}
+
 
 export default function TimelineChart({
   onStageClick,
@@ -246,14 +271,14 @@ export default function TimelineChart({
                   key={path.id}
                   className={`relative transition-all duration-200 group ${
                     isDimmed ? "opacity-40" : "opacity-100"
-                  } ${isTracked ? "mb-8" : "mb-6"}`}
+                  } ${isTracked ? "mb-6 mt-2" : "mb-6"}`}
                   style={{ height: pathHeight + 24 }}
                 >
                   {/* Tracked path highlight background */}
                   {isTracked && (
                     <div 
-                      className="absolute -inset-x-4 -inset-y-2 bg-brand-50/50 border border-brand-200 rounded-lg -z-10"
-                      style={{ left: "-224px" }}
+                      className="absolute -inset-y-3 bg-gradient-to-r from-brand-100/80 via-brand-50/60 to-transparent border-l-4 border-brand-500 rounded-r-xl -z-10"
+                      style={{ left: "-224px", right: "-24px" }}
                     />
                   )}
                   
@@ -263,15 +288,15 @@ export default function TimelineChart({
                     <div 
                       className={`group/pathheader text-right p-2 -m-2 rounded-lg cursor-pointer transition-all ${
                         isTracked 
-                          ? "bg-brand-100 ring-2 ring-brand-400" 
+                          ? "bg-brand-500 shadow-md" 
                           : "hover:bg-gray-100"
                       }`}
                       onClick={() => onSelectPath?.(path)}
                     >
                       <div className="flex items-center justify-end gap-2">
                         {isTracked ? (
-                          <span className="flex items-center gap-1 text-[10px] text-brand-700 bg-brand-200 px-1.5 py-0.5 rounded font-medium">
-                            <span className="w-1.5 h-1.5 bg-brand-600 rounded-full animate-pulse" />
+                          <span className="flex items-center gap-1 text-[10px] text-white/90 bg-brand-600 px-1.5 py-0.5 rounded font-medium">
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                             Tracking
                           </span>
                         ) : onSelectPath && (
@@ -279,24 +304,24 @@ export default function TimelineChart({
                             Click to track →
                           </span>
                         )}
-                        <div className={`font-semibold text-sm ${isTracked ? "text-brand-900" : "text-gray-900"}`}>
+                        <div className={`font-semibold text-sm ${isTracked ? "text-white" : "text-gray-900"}`}>
                           {path.name}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className={`text-xs ${isTracked ? "text-white/80" : "text-gray-500"}`}>
                         {path.totalYears.display} · ${path.estimatedCost.toLocaleString()}
                       </div>
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-brand-600 font-medium">
+                        <span className={`text-[10px] font-medium ${isTracked ? "text-white/90" : "text-brand-600"}`}>
                           {path.gcCategory}
                         </span>
                         {path.hasLottery && (
-                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded">
+                          <span className={`text-[9px] px-1 rounded ${isTracked ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"}`}>
                             lottery
                           </span>
                         )}
                         {path.isSelfPetition && (
-                          <span className="text-[9px] bg-green-100 text-green-700 px-1 rounded">
+                          <span className={`text-[9px] px-1 rounded ${isTracked ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
                             self-file
                           </span>
                         )}
@@ -542,114 +567,138 @@ export default function TimelineChart({
                       );
                     }
 
+                    // Calculate progress for filed stages
+                    const durationMonths = (stage.durationYears?.max || 0.5) * 12;
+                    const progressPercent = isFiled && !isApproved 
+                      ? getFiledProgress(stageProgress?.filedDate, durationMonths)
+                      : 0;
+                    
                     return (
                       <div
-                        key={`${stage.nodeId}-${idx}`}
-                        className={`absolute rounded cursor-pointer transition-all duration-150 border
-                          ${stageColorClass}
-                          ${isHovered ? "ring-2 ring-offset-1 ring-brand-400 scale-105 z-30" : "z-10"}
-                          ${isCurrentStatus && !hasProgress && !isNextStep ? "ring-2 ring-offset-1 ring-red-500" : ""}
-                          ${isNextStep ? "ring-2 ring-offset-1 ring-brand-500" : ""}
-                        `}
-                        style={{
-                          left: `${left}px`,
-                          width: `${width}px`,
-                          height: TRACK_HEIGHT,
-                          top: `${top}px`,
-                        }}
-                        onClick={() => handleStageClick(stage.nodeId)}
-                        onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
-                        onMouseLeave={() => setHoveredStage(null)}
-                      >
-                        <div className="h-full px-1 flex flex-col justify-center overflow-hidden relative">
-                          {/* Current status indicator (from profile) */}
-                          {isCurrentStatus && !hasProgress && !isNextStep && (
-                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
-                              YOU ARE HERE
-                            </div>
-                          )}
-                          {/* Next step indicator (when tracking) */}
-                          {isNextStep && (
-                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap animate-pulse">
-                              → NEXT
-                            </div>
-                          )}
-                          {isApproved && (
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-green-700 font-bold text-sm">
-                              ✓
-                            </div>
-                          )}
-                          {isFiled && !isApproved && (
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-blue-600 font-bold text-[10px]">
-                              FILED
-                            </div>
-                          )}
-                          {isCompact ? (
-                            // Compact: just show abbreviated name
-                            <div className="font-semibold text-[9px] leading-none text-center truncate">
-                              {shortName}
-                            </div>
-                          ) : (
-                            // Full: show name and duration
-                            <>
-                              <div className="font-semibold text-[10px] leading-tight truncate">
-                                {node.name}
-                              </div>
-                              <div className="text-[9px] opacity-90 leading-tight truncate">
-                                {isApproved && stageProgress?.approvedDate 
-                                  ? `Done ${formatDateShort(stageProgress.approvedDate)}`
-                                  : isFiled && stageProgress?.filedDate
-                                  ? `Filed ${formatDateShort(stageProgress.filedDate)}`
-                                  : stage.durationYears.display
-                                }
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Tooltip on hover */}
-                        {isHovered && (
-                          <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg z-40 min-w-[180px]">
-                            <div className="font-semibold">{node.name}</div>
-                            {hasProgress ? (
-                              <>
-                                <div className={`text-xs mt-1 ${isApproved ? "text-green-400" : "text-blue-400"}`}>
-                                  {isApproved ? "✓ Approved" : "⏳ Filed - Pending"}
-                                </div>
-                                {stageProgress?.filedDate && (
-                                  <div className="text-gray-400 text-[10px]">
-                                    Filed: {formatDateForDisplay(stageProgress.filedDate)}
-                                  </div>
-                                )}
-                                {stageProgress?.approvedDate && (
-                                  <div className="text-gray-400 text-[10px]">
-                                    Approved: {formatDateForDisplay(stageProgress.approvedDate)}
-                                  </div>
-                                )}
-                                {stageProgress?.receiptNumber && (
-                                  <div className="text-gray-400 text-[10px] font-mono">
-                                    {stageProgress.receiptNumber}
-                                  </div>
-                                )}
-                                {isTracked && (
-                                  <div className="text-brand-400 text-[10px] mt-1 border-t border-gray-700 pt-1">
-                                    Click to edit →
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-gray-300">{stage.durationYears.display}</div>
-                                {stage.note && <div className="text-gray-400 text-[10px] mt-0.5">{stage.note}</div>}
-                                {isTracked && (
-                                  <div className="text-brand-400 text-[10px] mt-1 border-t border-gray-700 pt-1">
-                                    Click to add details →
-                                  </div>
-                                )}
-                              </>
+                            key={`${stage.nodeId}-${idx}`}
+                            className={`absolute rounded cursor-pointer transition-all duration-150 border overflow-hidden
+                              ${stageColorClass}
+                              ${isHovered ? "ring-2 ring-offset-1 ring-brand-400 scale-105 z-30" : "z-10"}
+                              ${isCurrentStatus && !hasProgress && !isNextStep ? "ring-2 ring-offset-1 ring-red-500" : ""}
+                              ${isNextStep ? "ring-2 ring-offset-1 ring-brand-500" : ""}
+                            `}
+                            style={{
+                              left: `${left}px`,
+                              width: `${width}px`,
+                              height: TRACK_HEIGHT,
+                              top: `${top}px`,
+                            }}
+                            onClick={() => handleStageClick(stage.nodeId)}
+                            onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
+                            onMouseLeave={() => setHoveredStage(null)}
+                          >
+                            {/* Progress fill for filed stages */}
+                            {isFiled && !isApproved && progressPercent > 0 && (
+                              <div 
+                                className="absolute inset-y-0 left-0 bg-blue-700/30"
+                                style={{ width: `${progressPercent}%` }}
+                              />
                             )}
-                          </div>
-                        )}
+                            
+                            {/* Now marker - vertical line showing current position */}
+                            {isFiled && !isApproved && progressPercent > 0 && progressPercent < 100 && (
+                              <div 
+                                className="absolute top-0 bottom-0 w-0.5 bg-white/70"
+                                style={{ left: `${progressPercent}%` }}
+                              >
+                                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full border border-blue-700" />
+                              </div>
+                            )}
+                            
+                            <div className="h-full px-1 flex flex-col justify-center overflow-hidden relative z-10">
+                              {/* Current status indicator (from profile) */}
+                              {isCurrentStatus && !hasProgress && !isNextStep && (
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+                                  YOU ARE HERE
+                                </div>
+                              )}
+                              {/* Next step indicator (when tracking) */}
+                              {isNextStep && (
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap animate-pulse">
+                                  → NEXT
+                                </div>
+                              )}
+                              {isApproved && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-green-700 font-bold text-sm">
+                                  ✓
+                                </div>
+                              )}
+                              {isFiled && !isApproved && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-blue-600 font-bold text-[10px]">
+                                  FILED
+                                </div>
+                              )}
+                              {isCompact ? (
+                                // Compact: just show abbreviated name
+                                <div className="font-semibold text-[9px] leading-none text-center truncate">
+                                  {shortName}
+                                </div>
+                              ) : (
+                                // Full: show name and duration
+                                <>
+                                  <div className="font-semibold text-[10px] leading-tight truncate">
+                                    {node.name}
+                                  </div>
+                                  <div className="text-[9px] opacity-90 leading-tight truncate">
+                                    {isApproved && stageProgress?.approvedDate 
+                                      ? `Done ${formatDateShort(stageProgress.approvedDate)}`
+                                      : isFiled && stageProgress?.filedDate
+                                      ? `Filed ${formatDateShort(stageProgress.filedDate)}`
+                                      : stage.durationYears.display
+                                    }
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Tooltip on hover */}
+                            {isHovered && (
+                              <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg z-40 min-w-[180px]">
+                                <div className="font-semibold">{node.name}</div>
+                                {hasProgress ? (
+                                  <>
+                                    <div className={`text-xs mt-1 ${isApproved ? "text-green-400" : "text-blue-400"}`}>
+                                      {isApproved ? "✓ Approved" : `⏳ Filed - ${Math.round(progressPercent)}% elapsed`}
+                                    </div>
+                                    {stageProgress?.filedDate && (
+                                      <div className="text-gray-400 text-[10px]">
+                                        Filed: {formatDateForDisplay(stageProgress.filedDate)}
+                                      </div>
+                                    )}
+                                    {stageProgress?.approvedDate && (
+                                      <div className="text-gray-400 text-[10px]">
+                                        Approved: {formatDateForDisplay(stageProgress.approvedDate)}
+                                      </div>
+                                    )}
+                                    {stageProgress?.receiptNumber && (
+                                      <div className="text-gray-400 text-[10px] font-mono">
+                                        {stageProgress.receiptNumber}
+                                      </div>
+                                    )}
+                                    {isTracked && (
+                                      <div className="text-brand-400 text-[10px] mt-1 border-t border-gray-700 pt-1">
+                                        Click to edit →
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-gray-300">{stage.durationYears.display}</div>
+                                    {stage.note && <div className="text-gray-400 text-[10px] mt-0.5">{stage.note}</div>}
+                                    {isTracked && (
+                                      <div className="text-brand-400 text-[10px] mt-1 border-t border-gray-700 pt-1">
+                                        Click to add details →
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
                       </div>
                     );
                   });
@@ -660,28 +709,33 @@ export default function TimelineChart({
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="mt-6 flex flex-wrap items-center gap-6 justify-center">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-emerald-500" />
-            <span className="text-sm text-gray-600">Work Status</span>
+        {/* Legend + Disclaimer */}
+        <div className="mt-6 space-y-3">
+          <div className="flex flex-wrap items-center gap-6 justify-center">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-emerald-500" />
+              <span className="text-sm text-gray-600">Work Status</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-amber-500" />
+              <span className="text-sm text-gray-600">GC Process</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-blue-500" />
+              <span className="text-sm text-gray-600">Filed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-600" />
+              <span className="text-sm text-gray-600">Approved</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-orange-500" />
+              <span className="text-sm text-gray-600">PD Wait</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-amber-500" />
-            <span className="text-sm text-gray-600">GC Process</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-blue-500" />
-            <span className="text-sm text-gray-600">Filed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-600" />
-            <span className="text-sm text-gray-600">Approved</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-orange-500" />
-            <span className="text-sm text-gray-600">PD Wait</span>
-          </div>
+          <p className="text-[11px] text-gray-400 text-center">
+            Live data from DOL, USCIS, and State Dept. Timelines are estimates. Consult an immigration attorney for your situation.
+          </p>
         </div>
 
       </div>
