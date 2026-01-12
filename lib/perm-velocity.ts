@@ -212,42 +212,243 @@ export function estimateAnnualDemand(
 
 // ============== VELOCITY CALCULATION ==============
 
-// Historical visa bulletin advancement rates (months of PD advancement per year)
-// Based on actual visa bulletin movement over past 5 years
-// These are more reliable than pure PERM-based calculations
-const HISTORICAL_BULLETIN_ADVANCEMENT: Record<EBCategory, Record<"india" | "china" | "other", number>> = {
+// Historical visa bulletin data for calculating actual advancement rates
+// This should ideally be fetched from State Dept archives, but we store
+// recent history to calculate velocity dynamically
+export interface HistoricalBulletinEntry {
+  bulletinMonth: string;  // e.g., "January 2025"
+  finalActionDate: string; // e.g., "Jul 2013" or "Current"
+}
+
+export interface HistoricalBulletinData {
+  eb1: { india: HistoricalBulletinEntry[]; china: HistoricalBulletinEntry[]; other: HistoricalBulletinEntry[] };
+  eb2: { india: HistoricalBulletinEntry[]; china: HistoricalBulletinEntry[]; other: HistoricalBulletinEntry[] };
+  eb3: { india: HistoricalBulletinEntry[]; china: HistoricalBulletinEntry[]; other: HistoricalBulletinEntry[] };
+}
+
+// Historical visa bulletin Final Action dates (from State Dept archives)
+// This data is used to calculate ACTUAL velocity dynamically
+// Format: { bulletinMonth: "Month Year", finalActionDate: "Mon YYYY" or "Current" }
+const HISTORICAL_BULLETIN_DATA: HistoricalBulletinData = {
   eb1: {
-    india: 8,    // EB-1 India moves ~8 months per year
-    china: 6,    // EB-1 China moves ~6 months per year  
-    other: 12,   // EB-1 ROW is usually current
+    india: [
+      { bulletinMonth: "January 2020", finalActionDate: "Current" },
+      { bulletinMonth: "January 2021", finalActionDate: "Current" },
+      { bulletinMonth: "January 2022", finalActionDate: "Jan 2021" },
+      { bulletinMonth: "January 2023", finalActionDate: "Jan 2022" },
+      { bulletinMonth: "January 2024", finalActionDate: "Jan 2022" },
+      { bulletinMonth: "January 2025", finalActionDate: "Feb 2023" },
+    ],
+    china: [
+      { bulletinMonth: "January 2020", finalActionDate: "Current" },
+      { bulletinMonth: "January 2021", finalActionDate: "Current" },
+      { bulletinMonth: "January 2022", finalActionDate: "Nov 2020" },
+      { bulletinMonth: "January 2023", finalActionDate: "Feb 2022" },
+      { bulletinMonth: "January 2024", finalActionDate: "Jan 2022" },
+      { bulletinMonth: "January 2025", finalActionDate: "Feb 2023" },
+    ],
+    other: [
+      { bulletinMonth: "January 2020", finalActionDate: "Current" },
+      { bulletinMonth: "January 2021", finalActionDate: "Current" },
+      { bulletinMonth: "January 2022", finalActionDate: "Current" },
+      { bulletinMonth: "January 2023", finalActionDate: "Current" },
+      { bulletinMonth: "January 2024", finalActionDate: "Current" },
+      { bulletinMonth: "January 2025", finalActionDate: "Current" },
+    ],
   },
   eb2: {
-    india: 4,    // EB-2 India moves ~4 months per year (historically 1-2 weeks/month)
-    china: 6,    // EB-2 China moves ~6 months per year
-    other: 12,   // EB-2 ROW is usually current or fast
+    india: [
+      { bulletinMonth: "January 2020", finalActionDate: "Apr 2009" },
+      { bulletinMonth: "January 2021", finalActionDate: "Jun 2009" },
+      { bulletinMonth: "January 2022", finalActionDate: "Apr 2010" },
+      { bulletinMonth: "January 2023", finalActionDate: "Aug 2011" },
+      { bulletinMonth: "January 2024", finalActionDate: "Jun 2012" },
+      { bulletinMonth: "January 2025", finalActionDate: "Jul 2013" },
+    ],
+    china: [
+      { bulletinMonth: "January 2020", finalActionDate: "Dec 2016" },
+      { bulletinMonth: "January 2021", finalActionDate: "May 2017" },
+      { bulletinMonth: "January 2022", finalActionDate: "Sep 2018" },
+      { bulletinMonth: "January 2023", finalActionDate: "Nov 2019" },
+      { bulletinMonth: "January 2024", finalActionDate: "Jul 2020" },
+      { bulletinMonth: "January 2025", finalActionDate: "Sep 2021" },
+    ],
+    other: [
+      { bulletinMonth: "January 2020", finalActionDate: "Current" },
+      { bulletinMonth: "January 2021", finalActionDate: "Current" },
+      { bulletinMonth: "January 2022", finalActionDate: "Current" },
+      { bulletinMonth: "January 2023", finalActionDate: "Current" },
+      { bulletinMonth: "January 2024", finalActionDate: "Nov 2023" },
+      { bulletinMonth: "January 2025", finalActionDate: "Apr 2024" },
+    ],
   },
   eb3: {
-    india: 3,    // EB-3 India moves ~3 months per year (very slow)
-    china: 5,    // EB-3 China moves ~5 months per year
-    other: 10,   // EB-3 ROW usually has some backlog but moves well
+    india: [
+      { bulletinMonth: "January 2020", finalActionDate: "Jan 2009" },
+      { bulletinMonth: "January 2021", finalActionDate: "Jun 2009" },
+      { bulletinMonth: "January 2022", finalActionDate: "Oct 2010" },
+      { bulletinMonth: "January 2023", finalActionDate: "Sep 2011" },
+      { bulletinMonth: "January 2024", finalActionDate: "Oct 2012" },
+      { bulletinMonth: "January 2025", finalActionDate: "Nov 2013" },
+    ],
+    china: [
+      { bulletinMonth: "January 2020", finalActionDate: "Jan 2017" },
+      { bulletinMonth: "January 2021", finalActionDate: "May 2018" },
+      { bulletinMonth: "January 2022", finalActionDate: "Mar 2019" },
+      { bulletinMonth: "January 2023", finalActionDate: "Aug 2019" },
+      { bulletinMonth: "January 2024", finalActionDate: "Mar 2020" },
+      { bulletinMonth: "January 2025", finalActionDate: "May 2021" },
+    ],
+    other: [
+      { bulletinMonth: "January 2020", finalActionDate: "Mar 2019" },
+      { bulletinMonth: "January 2021", finalActionDate: "Current" },
+      { bulletinMonth: "January 2022", finalActionDate: "Current" },
+      { bulletinMonth: "January 2023", finalActionDate: "Jan 2022" },
+      { bulletinMonth: "January 2024", finalActionDate: "Nov 2022" },
+      { bulletinMonth: "January 2025", finalActionDate: "Apr 2023" },
+    ],
   },
 };
 
 /**
+ * Parse a date string like "Jul 2013" into total months since year 2000
+ * Returns null for "Current"
+ */
+function parseDateToMonths(dateStr: string): number | null {
+  if (dateStr.toLowerCase() === "current") return null;
+  
+  const months: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  
+  const match = dateStr.match(/([a-z]{3})\s*(\d{4})/i);
+  if (!match) return null;
+  
+  const monthNum = months[match[1].toLowerCase()];
+  const year = parseInt(match[2], 10);
+  
+  if (monthNum === undefined || isNaN(year)) return null;
+  
+  return (year - 2000) * 12 + monthNum;
+}
+
+/**
+ * Calculate the advancement rate from historical data
+ * Uses a CONSERVATIVE approach: takes the 25th percentile of year-over-year movements
+ * This accounts for variability and gives more realistic estimates for planning
+ */
+function calculateHistoricalAdvancementRate(
+  history: HistoricalBulletinEntry[]
+): number {
+  if (history.length < 2) return 12; // Default to 1:1 if not enough data
+  
+  // Calculate year-over-year advancement rates
+  const yearOverYearRates: number[] = [];
+  
+  for (let i = 1; i < history.length; i++) {
+    const prevEntry = history[i - 1];
+    const currEntry = history[i];
+    
+    const prevMonths = parseDateToMonths(prevEntry.finalActionDate);
+    const currMonths = parseDateToMonths(currEntry.finalActionDate);
+    
+    // Handle "Current" entries
+    if (prevMonths === null && currMonths === null) {
+      // Both current - assume fast movement (12 mo/yr)
+      yearOverYearRates.push(12);
+    } else if (prevMonths === null && currMonths !== null) {
+      // Retrogressed from current - skip this data point
+      continue;
+    } else if (prevMonths !== null && currMonths === null) {
+      // Became current - very fast movement
+      yearOverYearRates.push(24);
+    } else if (prevMonths !== null && currMonths !== null) {
+      // Normal case - calculate advancement
+      const advancement = currMonths - prevMonths;
+      if (advancement > 0) {
+        yearOverYearRates.push(advancement);
+      }
+    }
+  }
+  
+  if (yearOverYearRates.length === 0) return 12;
+  
+  // Sort rates from slowest to fastest
+  yearOverYearRates.sort((a, b) => a - b);
+  
+  // For immigration planning, use CONSERVATIVE estimates
+  // Take the slower of: minimum rate or 25th percentile
+  // This accounts for years when movement slows down
+  const minRate = yearOverYearRates[0];
+  const percentileIndex = Math.floor(yearOverYearRates.length * 0.25);
+  const percentile25 = yearOverYearRates[Math.max(0, percentileIndex)];
+  
+  // Use the slower rate, but blend with percentile to avoid extreme outliers
+  // 60% min + 40% 25th percentile
+  const conservativeRate = minRate * 0.6 + percentile25 * 0.4;
+  
+  // Clamp to reasonable bounds (1-18 months per year)
+  // Cap at 18 to ensure we don't show unrealistically fast movement
+  return Math.max(1, Math.min(18, conservativeRate));
+}
+
+/**
+ * Get the dynamically calculated advancement rate for a category/country
+ */
+function getAdvancementRate(
+  category: EBCategory,
+  country: "india" | "china" | "other"
+): number {
+  const history = HISTORICAL_BULLETIN_DATA[category][country];
+  return calculateHistoricalAdvancementRate(history);
+}
+
+// Cache for calculated advancement rates (calculated once per session)
+let cachedAdvancementRates: Record<EBCategory, Record<"india" | "china" | "other", number>> | null = null;
+
+/**
+ * Get all advancement rates (cached for performance)
+ */
+export function getAdvancementRates(): Record<EBCategory, Record<"india" | "china" | "other", number>> {
+  if (cachedAdvancementRates) return cachedAdvancementRates;
+  
+  cachedAdvancementRates = {
+    eb1: {
+      india: getAdvancementRate("eb1", "india"),
+      china: getAdvancementRate("eb1", "china"),
+      other: getAdvancementRate("eb1", "other"),
+    },
+    eb2: {
+      india: getAdvancementRate("eb2", "india"),
+      china: getAdvancementRate("eb2", "china"),
+      other: getAdvancementRate("eb2", "other"),
+    },
+    eb3: {
+      india: getAdvancementRate("eb3", "india"),
+      china: getAdvancementRate("eb3", "china"),
+      other: getAdvancementRate("eb3", "other"),
+    },
+  };
+  
+  return cachedAdvancementRates;
+}
+
+/**
  * Calculate the velocity ratio for a category/country combination
- * Uses historical bulletin movement rates which are more accurate than
- * pure PERM demand calculations
+ * Uses dynamically calculated historical bulletin movement rates
  */
 export function calculateVelocity(
   category: EBCategory,
   countryOfBirth: CountryOfBirth
 ): VelocityData {
-  // Get empirical bulletin advancement rate
+  // Get dynamically calculated advancement rate from historical data
   const countryKey = (countryOfBirth === "india" || countryOfBirth === "china") 
     ? countryOfBirth 
     : "other";
   
-  const bulletinAdvancementMonthsPerYear = HISTORICAL_BULLETIN_ADVANCEMENT[category][countryKey];
+  const advancementRates = getAdvancementRates();
+  const bulletinAdvancementMonthsPerYear = advancementRates[category][countryKey];
   
   // Calculate velocity ratio (12 months / actual advancement = how many years per year of backlog)
   const velocityRatio = 12 / bulletinAdvancementMonthsPerYear;
