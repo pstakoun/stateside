@@ -38,8 +38,15 @@ export default function Home() {
   }, []);
 
   const handleOnboardingComplete = (newFilters: FilterState) => {
-    setFilters(applyActiveCaseToFilters(newFilters, caseTrackerState));
-    saveUserProfile(newFilters);
+    // Keep "case state" inside the case tracker. Avoid persisting PD/I-140 fields in the general profile.
+    const baseFilters: FilterState = {
+      ...newFilters,
+      hasApprovedI140: false,
+      existingPriorityDate: null,
+      existingPriorityDateCategory: null,
+    };
+    setFilters(applyActiveCaseToFilters(baseFilters, caseTrackerState));
+    saveUserProfile(baseFilters);
     setShowOnboarding(false);
   };
 
@@ -63,6 +70,8 @@ export default function Home() {
         <OnboardingQuiz
           onComplete={handleOnboardingComplete}
           initialFilters={filters}
+          onStartCaseTracking={() => setShowCaseTracker(true)}
+          caseTrackingEnabled={caseTrackerState.enabled}
         />
       )}
 

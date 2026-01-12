@@ -90,3 +90,52 @@ export function applyActiveCaseToFilters(
   return next;
 }
 
+function newId(): string {
+  return `case_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+}
+
+/**
+ * Migration helper: if legacy filters stored a PD/I-140 approval, convert it into a tracker case.
+ * This keeps the UX consistent once onboarding no longer asks for "approved I-140".
+ */
+export function migrateLegacyPdIntoCaseTracker(
+  filters: FilterState,
+  existing: CaseTrackerState | null | undefined
+): CaseTrackerState {
+  const base = existing ?? defaultCaseTrackerState;
+
+  const hasLegacyPd = Boolean(filters.existingPriorityDate);
+  const hasLegacyI140Approval = Boolean(filters.hasApprovedI140);
+
+  // If no legacy data, do nothing.
+  if (!hasLegacyPd && !hasLegacyI140Approval) return base;
+
+  // If the user already has tracker cases, don't override.
+  if (base.cases.length > 0) return base;
+
+  const now = new Date().toISOString();
+  const id = newId();
+
+  return {
+    enabled: true,
+    activeCaseId: id,
+    updatedAt: now,
+    cases: [
+      {
+        id,
+        type: "employment",
+        title: "Imported case",
+        category: filters.existingPriorityDateCategory ?? null,
+        priorityDate: filters.existingPriorityDate ?? null,
+        milestones: {
+          perm: { status: "not_started", sponsorshipIntent: "not_sure" },
+          i140: { status: filters.hasApprovedI140 ? "approved" : "not_started" },
+          i485: { status: "not_started", ead: { status: "not_started" }, ap: { status: "not_started" } },
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  };
+}
+

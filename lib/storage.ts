@@ -1,5 +1,5 @@
 import { FilterState, defaultFilters } from "./filter-paths";
-import { CaseTrackerState, defaultCaseTrackerState } from "./case-tracker";
+import { CaseTrackerState, defaultCaseTrackerState, migrateLegacyPdIntoCaseTracker } from "./case-tracker";
 
 const STORAGE_KEY = "stateside_user_profile";
 
@@ -98,6 +98,9 @@ export function getStoredProfile(): UserProfile | null {
     if (!profile.caseTracker.updatedAt) {
       profile.caseTracker.updatedAt = new Date().toISOString();
     }
+
+    // Migration: if legacy PD/I-140 fields exist, import into tracker (and enable it)
+    profile.caseTracker = migrateLegacyPdIntoCaseTracker(profile.filters, profile.caseTracker);
 
     return profile;
   } catch (e) {
