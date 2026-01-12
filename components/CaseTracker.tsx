@@ -69,7 +69,11 @@ export default function CaseTracker({ filters, onUpdate, onClose }: CaseTrackerP
 
   const startAdd = () => {
     setEditingCaseId(null);
-    setFormData({ type: "perm", status: "preparing" }); // Defaults
+    setFormData({ 
+        type: "perm", 
+        status: "preparing",
+        filedDate: new Date().toISOString().split('T')[0]
+    });
     setIsAdding(true);
   };
 

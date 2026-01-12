@@ -11,6 +11,7 @@ import {
   defaultFilters,
 } from "@/lib/filter-paths";
 import { trackOnboardingComplete } from "@/lib/analytics";
+import CaseTracker from "./CaseTracker";
 
 interface OnboardingQuizProps {
   onComplete: (filters: FilterState) => void;
@@ -47,17 +48,6 @@ const countryOptions: { value: CountryOfBirth; label: string; description: strin
   { value: "other", label: "Other", description: "No major backlogs" },
 ];
 
-const ebCategoryOptions: { value: EBCategory; label: string; description: string }[] = [
-  { value: "eb1", label: "EB-1", description: "Priority workers" },
-  { value: "eb2", label: "EB-2", description: "Advanced degree / NIW" },
-  { value: "eb3", label: "EB-3", description: "Skilled workers" },
-];
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
-
 // Generate years from 2000 to current year
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear - i);
@@ -75,6 +65,7 @@ function hasAnySpecialCircumstance(filters: FilterState): boolean {
 export default function OnboardingQuiz({ onComplete, initialFilters }: OnboardingQuizProps) {
   const [filters, setFilters] = useState<FilterState>(initialFilters || defaultFilters);
   const [showSpecial, setShowSpecial] = useState(() => hasAnySpecialCircumstance(initialFilters || defaultFilters));
+  const [showCaseTracker, setShowCaseTracker] = useState(false);
 
   const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     setFilters((prev) => {
@@ -93,6 +84,10 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
     onComplete(filters);
   };
 
+  const handleCaseUpdate = (newFilters: FilterState) => {
+    setFilters(newFilters);
+  };
+
   const specialCount = [
     filters.hasExtraordinaryAbility,
     filters.isOutstandingResearcher,
@@ -100,6 +95,16 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
     filters.isMarriedToUSCitizen,
     filters.hasInvestmentCapital,
   ].filter(Boolean).length;
+
+  if (showCaseTracker) {
+    return (
+      <CaseTracker
+        filters={filters}
+        onUpdate={handleCaseUpdate}
+        onClose={() => setShowCaseTracker(false)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -394,99 +399,19 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
               )}
             </div>
 
-            {/* Existing Case / Priority Date */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <label className="flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filters.hasApprovedI140}
-                  onChange={(e) => {
-                    updateFilter("hasApprovedI140", e.target.checked);
-                    if (!e.target.checked) {
-                      updateFilter("existingPriorityDate", null);
-                      updateFilter("existingPriorityDateCategory", null);
-                    }
-                  }}
-                  className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                />
+            {/* Advanced: Add existing cases */}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900">
-                    I have an approved I-140 with a priority date
-                  </span>
-                  <p className="text-xs text-gray-500">Your priority date is portable to new petitions</p>
+                    <h3 className="text-sm font-medium text-blue-900">Already started your process?</h3>
+                    <p className="text-xs text-blue-700 mt-0.5">Add your filed cases (PERM, I-140) for accurate predictions</p>
                 </div>
-              </label>
-
-              {filters.hasApprovedI140 && (
-                <div className="p-4 space-y-4 border-t border-gray-200">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Priority date
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={filters.existingPriorityDate?.month || ""}
-                        onChange={(e) => {
-                          const month = parseInt(e.target.value);
-                          const year = filters.existingPriorityDate?.year || currentYear;
-                          updateFilter("existingPriorityDate", month ? { month, year } : null);
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
-                      >
-                        <option value="">Month</option>
-                        {months.map((m, i) => (
-                          <option key={m} value={i + 1}>{m}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={filters.existingPriorityDate?.year || ""}
-                        onChange={(e) => {
-                          const year = parseInt(e.target.value);
-                          const month = filters.existingPriorityDate?.month || 1;
-                          updateFilter("existingPriorityDate", year ? { month, year } : null);
-                        }}
-                        className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
-                      >
-                        <option value="">Year</option>
-                        {years.map((y) => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      EB category of your I-140
-                    </label>
-                    <div className="flex gap-2">
-                      {ebCategoryOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => updateFilter("existingPriorityDateCategory", option.value)}
-                          className={`flex-1 p-2 rounded-lg border-2 text-center transition-all ${
-                            filters.existingPriorityDateCategory === option.value
-                              ? "border-brand-500 bg-brand-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className={`font-medium text-sm ${
-                            filters.existingPriorityDateCategory === option.value ? "text-brand-700" : "text-gray-900"
-                          }`}>
-                            {option.label}
-                          </div>
-                          <div className="text-xs text-gray-500">{option.description}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-gray-500 bg-blue-50 p-2 rounded-lg">
-                    💡 With an approved I-140, your priority date can be used for any new I-140 petition, even with a different employer.
-                  </p>
-                </div>
-              )}
+                <button
+                    type="button"
+                    onClick={() => setShowCaseTracker(true)}
+                    className="px-3 py-1.5 bg-white text-blue-600 text-xs font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                    Add Cases
+                </button>
             </div>
           </div>
 
