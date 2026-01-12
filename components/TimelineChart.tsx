@@ -7,7 +7,7 @@ import { generatePaths, ComposedStage, ComposedPath, setProcessingTimes } from "
 import { adaptDynamicData } from "@/lib/processing-times";
 import { DynamicData } from "@/lib/dynamic-data";
 import { trackStageClick, trackPathsGenerated } from "@/lib/analytics";
-import { TrackedPathProgress, StageProgress } from "@/app/page";
+import { GlobalProgress, StageProgress } from "@/app/page";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -21,7 +21,7 @@ interface TimelineChartProps {
   onMatchingCountChange: (count: number) => void;
   onSelectPath?: (path: ComposedPath) => void;
   selectedPathId?: string | null;
-  trackedProgress?: TrackedPathProgress | null;
+  globalProgress?: GlobalProgress | null;
 }
 
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -74,7 +74,7 @@ export default function TimelineChart({
   onMatchingCountChange,
   onSelectPath,
   selectedPathId,
-  trackedProgress,
+  globalProgress,
 }: TimelineChartProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
@@ -82,12 +82,10 @@ export default function TimelineChart({
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"] | undefined>(undefined);
   const [datesForFiling, setDatesForFiling] = useState<DynamicData["datesForFiling"] | undefined>(undefined);
 
-  // Helper to get stage progress
+  // Helper to get stage progress (now global - same stage data for all paths)
   const getStageProgress = (pathId: string, nodeId: string): StageProgress | null => {
-    if (trackedProgress?.pathId === pathId) {
-      return trackedProgress.stages[nodeId] || null;
-    }
-    return null;
+    // Stage progress is global, not per-path
+    return globalProgress?.stages[nodeId] || null;
   };
 
   // Fetch processing times on mount
@@ -182,7 +180,7 @@ export default function TimelineChart({
     <div className="w-full h-full overflow-x-auto overflow-y-auto bg-gray-50">
       <div className="min-w-[1200px] p-6">
         {/* Tracking instruction banner */}
-        {selectedPathId && trackedProgress && (
+        {selectedPathId && globalProgress && (
           <div className="mb-4 flex items-center justify-center gap-2 text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-4 py-2" style={{ marginLeft: "220px" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />

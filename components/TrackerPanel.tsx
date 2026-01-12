@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useMemo } from "react";
 import { ComposedPath, ComposedStage } from "@/lib/path-composer";
-import { TrackedPathProgress, StageProgress } from "@/app/page";
+import { GlobalProgress, StageProgress } from "@/app/page";
 import visaData from "@/data/visa-paths.json";
 
 interface TrackerPanelProps {
   path: ComposedPath;
-  progress: TrackedPathProgress;
+  progress: GlobalProgress;
   onUpdateStage: (nodeId: string, update: Partial<StageProgress>) => void;
   onUpdatePortedPD: (date: string | null, category: string | null) => void;
   onClose: () => void;
@@ -406,49 +406,60 @@ export default function TrackerPanel({
     return currentPathPD;
   }, [progress.portedPriorityDate, currentPathPD]);
 
-  // Calculate estimated completion date
+  // Calculate estimated completion date using path's actual timeline
   const estimatedCompletion = useMemo(() => {
     const now = new Date();
     let totalRemainingMonths = 0;
     let hasUncertainty = false;
 
-    // Calculate remaining time for each stage
-    for (const stage of trackableStages) {
-      const sp = progress.stages[stage.nodeId] || { status: "not_started" };
-      const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
+    // Go through ALL stages (including PD wait) to calculate remaining time
+    for (const stage of path.stages) {
+      // Skip the final GC marker
+      if (stage.nodeId === "gc") continue;
       
+      const sp = progress.stages[stage.nodeId] || { status: "not_started" };
+      
+      // For PD wait stages, use the path's calculated wait time
+      // This already accounts for ported PD via filters
+      if (stage.isPriorityWait) {
+        if (stage.durationYears?.max) {
+          totalRemainingMonths += stage.durationYears.max * 12;
+          hasUncertainty = true; // PD wait is always uncertain
+        }
+        continue;
+      }
+      
+      // For regular stages
       if (sp.status === "approved") {
-        // Already done
+        // Already done - no time to add
         continue;
       } else if (sp.status === "filed" && sp.filedDate) {
-        // In progress - calculate remaining
+        // In progress - calculate remaining based on typical times
         const filedDate = parseDate(sp.filedDate);
+        const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
         if (filedDate && typical) {
           const elapsed = monthsBetween(filedDate, now);
           const avgProcessing = (typical.min + typical.max) / 2;
           totalRemainingMonths += Math.max(0, avgProcessing - elapsed);
-        } else {
+        } else if (stage.durationYears?.max) {
+          // Use path's estimate as fallback
+          totalRemainingMonths += stage.durationYears.max * 12 * 0.5; // Assume 50% done
           hasUncertainty = true;
         }
       } else {
-        // Not started - add full estimate
-        if (typical) {
-          totalRemainingMonths += (typical.min + typical.max) / 2;
-        } else if (stage.durationYears?.max) {
-          totalRemainingMonths += stage.durationYears.max * 12;
+        // Not started - use path's actual duration estimate
+        if (stage.durationYears?.max) {
+          // Use average of min and max
+          const avg = ((stage.durationYears.min || 0) + stage.durationYears.max) / 2;
+          totalRemainingMonths += avg * 12;
         } else {
-          hasUncertainty = true;
+          // Fallback to typical processing times
+          const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
+          if (typical) {
+            totalRemainingMonths += (typical.min + typical.max) / 2;
+          }
         }
       }
-    }
-
-    // Add PD wait time if applicable (from path's priority date wait stages)
-    const pdWaitStage = path.stages.find(s => s.isPriorityWait);
-    if (pdWaitStage && pdWaitStage.durationYears?.max) {
-      // If we have an effective PD, use velocity calculation
-      // Otherwise use the path's estimated wait
-      totalRemainingMonths += pdWaitStage.durationYears.max * 12;
-      hasUncertainty = true; // PD wait is always uncertain
     }
 
     // Calculate estimated date
@@ -460,7 +471,7 @@ export default function TrackerPanel({
       months: totalRemainingMonths,
       hasUncertainty,
     };
-  }, [trackableStages, progress.stages, path.stages]);
+  }, [path.stages, progress.stages]);
 
   // Priority date aging benefit
   const pdAgingBenefit = useMemo(() => {

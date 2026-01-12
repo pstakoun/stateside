@@ -23,27 +23,55 @@ export interface StageProgress {
   notes?: string;
 }
 
-export interface TrackedPathProgress {
-  pathId: string;
-  pathName: string;
-  stages: Record<string, StageProgress>; // keyed by nodeId
+// Global progress - stage data is shared across all paths
+export interface GlobalProgress {
+  selectedPathId: string | null; // Currently selected path to track
+  stages: Record<string, StageProgress>; // Global stage progress, keyed by nodeId
   portedPriorityDate?: string | null; // YYYY-MM-DD - from a previous case
   portedPriorityDateCategory?: string | null; // eb1, eb2, eb3
   startedAt: string;
   updatedAt: string;
 }
 
-function loadProgress(): TrackedPathProgress | null {
+// Legacy type for migration
+interface LegacyTrackedPathProgress {
+  pathId: string;
+  pathName: string;
+  stages: Record<string, StageProgress>;
+  portedPriorityDate?: string | null;
+  portedPriorityDateCategory?: string | null;
+  startedAt: string;
+  updatedAt: string;
+}
+
+function loadProgress(): GlobalProgress | null {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    
+    const parsed = JSON.parse(stored);
+    
+    // Migration from legacy format (had pathId/pathName at top level)
+    if (parsed.pathId && parsed.pathName && !parsed.selectedPathId) {
+      const legacy = parsed as LegacyTrackedPathProgress;
+      return {
+        selectedPathId: legacy.pathId,
+        stages: legacy.stages,
+        portedPriorityDate: legacy.portedPriorityDate,
+        portedPriorityDateCategory: legacy.portedPriorityDateCategory,
+        startedAt: legacy.startedAt,
+        updatedAt: legacy.updatedAt,
+      };
+    }
+    
+    return parsed as GlobalProgress;
   } catch {
     return null;
   }
 }
 
-function saveProgressToStorage(progress: TrackedPathProgress | null) {
+function saveProgressToStorage(progress: GlobalProgress | null) {
   if (typeof window === "undefined") return;
   try {
     if (progress) {
@@ -63,8 +91,8 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // Path tracking state
-  const [trackedPath, setTrackedPath] = useState<TrackedPathProgress | null>(null);
+  // Global progress state - shared across all paths
+  const [globalProgress, setGlobalProgress] = useState<GlobalProgress | null>(null);
   const [selectedPath, setSelectedPath] = useState<ComposedPath | null>(null);
   const [expandedStageId, setExpandedStageId] = useState<string | null>(null);
 
@@ -82,17 +110,14 @@ export default function Home() {
     }
     
     if (storedProgress) {
-      setTrackedPath(storedProgress);
+      setGlobalProgress(storedProgress);
       
       // Sync any ported PD to filters for PD wait calculation
-      // NOTE: This does NOT set hasApprovedI140 - ported PD is from previous employer
-      // User still needs new PERM with new employer
       if (storedProgress.portedPriorityDate) {
         const [year, month] = storedProgress.portedPriorityDate.split("-").map(Number);
         const category = storedProgress.portedPriorityDateCategory;
         loadedFilters = {
           ...loadedFilters,
-          // DO NOT set hasApprovedI140: true - that would skip PERM
           existingPriorityDate: { year, month },
           existingPriorityDateCategory: category === "eb1" ? "eb1" : 
                                         category === "eb2" ? "eb2" : 
@@ -108,9 +133,9 @@ export default function Home() {
   // Save progress whenever it changes
   useEffect(() => {
     if (isLoaded) {
-      saveProgressToStorage(trackedPath);
+      saveProgressToStorage(globalProgress);
     }
-  }, [trackedPath, isLoaded]);
+  }, [globalProgress, isLoaded]);
 
   const handleMatchingCountChange = useCallback((count: number) => {
     setMatchingCount(count);
@@ -130,39 +155,39 @@ export default function Home() {
   const handleSelectPath = (path: ComposedPath) => {
     setSelectedPath(path);
     
-    if (trackedPath?.pathId === path.id) {
-      // Already tracking this path - just open panel
-      return;
-    }
-    
-    // Start tracking a new path
-    const now = new Date().toISOString();
-    const newProgress: TrackedPathProgress = {
-      pathId: path.id,
-      pathName: path.name,
-      stages: {},
-      startedAt: now,
-      updatedAt: now,
-    };
-    
-    // Initialize all stages as not_started
-    path.stages.forEach(stage => {
-      newProgress.stages[stage.nodeId] = {
-        status: "not_started",
+    // Update selected path in global progress (preserve stage data)
+    setGlobalProgress(prev => {
+      const now = new Date().toISOString();
+      if (!prev) {
+        // First time tracking - create new progress
+        return {
+          selectedPathId: path.id,
+          stages: {},
+          startedAt: now,
+          updatedAt: now,
+        };
+      }
+      // Just update selected path, keep all stage data
+      return {
+        ...prev,
+        selectedPathId: path.id,
+        updatedAt: now,
       };
     });
-    
-    setTrackedPath(newProgress);
   };
 
-  // Handle updating a stage's progress
-  // NOTE: Stage progress is for tracking only - it doesn't affect filter/timeline calculations
-  // Only the "ported PD" section affects the PD wait calculation
+  // Handle updating a stage's progress (global - applies to all paths with this stage)
   const handleUpdateStage = (nodeId: string, update: Partial<StageProgress>) => {
-    if (!trackedPath) return;
-    
-    setTrackedPath(prev => {
-      if (!prev) return prev;
+    setGlobalProgress(prev => {
+      if (!prev) {
+        // Create new progress if none exists
+        return {
+          selectedPathId: null,
+          stages: { [nodeId]: { status: "not_started", ...update } },
+          startedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
       
       const currentStage = prev.stages[nodeId] || { status: "not_started" };
       const newStage = { ...currentStage, ...update };
@@ -180,19 +205,27 @@ export default function Home() {
 
   // Handle updating ported priority date (from previous employer's I-140)
   const handleUpdatePortedPD = (date: string | null, category: string | null) => {
-    if (!trackedPath) return;
-    
-    setTrackedPath(prev => {
-      if (!prev) return prev;
+    setGlobalProgress(prev => {
+      const now = new Date().toISOString();
+      if (!prev) {
+        return {
+          selectedPathId: null,
+          stages: {},
+          portedPriorityDate: date,
+          portedPriorityDateCategory: category,
+          startedAt: now,
+          updatedAt: now,
+        };
+      }
       return {
         ...prev,
         portedPriorityDate: date,
         portedPriorityDateCategory: category,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       };
     });
     
-    // Sync to filters for PD wait calculation (but NOT hasApprovedI140)
+    // Sync to filters for PD wait calculation
     syncPortedPDToFilters(date, category);
   };
   
@@ -233,16 +266,16 @@ export default function Home() {
     saveUserProfile(newFilters);
   };
 
-  // Handle stopping tracking
+  // Handle stopping tracking (just deselect path, keep stage data)
   const handleStopTracking = () => {
-    setTrackedPath(null);
+    setGlobalProgress(prev => prev ? { ...prev, selectedPathId: null } : null);
     setSelectedPath(null);
     setExpandedStageId(null);
   };
 
-  // Handle clicking a stage in the timeline (when tracking, open in panel)
+  // Handle clicking a stage in the timeline
   const handleTimelineStageClick = (nodeId: string) => {
-    if (trackedPath && selectedPath) {
+    if (globalProgress?.selectedPathId && selectedPath) {
       // If tracking, expand this stage in the panel
       setExpandedStageId(nodeId);
     } else {
@@ -251,14 +284,21 @@ export default function Home() {
     }
   };
 
-  // Calculate progress summary
+  // Calculate progress summary for selected path
   const getProgressSummary = () => {
-    if (!trackedPath) return null;
+    if (!globalProgress || !selectedPath) return null;
     
-    const stages = Object.values(trackedPath.stages);
-    const total = stages.length;
-    const filed = stages.filter(s => s.status === "filed").length;
-    const approved = stages.filter(s => s.status === "approved").length;
+    let total = 0;
+    let filed = 0;
+    let approved = 0;
+    
+    for (const stage of selectedPath.stages) {
+      if (stage.isPriorityWait || stage.nodeId === "gc") continue;
+      total++;
+      const sp = globalProgress.stages[stage.nodeId];
+      if (sp?.status === "filed") filed++;
+      if (sp?.status === "approved") approved++;
+    }
     
     return { total, filed, approved, completed: approved };
   };
@@ -315,11 +355,11 @@ export default function Home() {
           </div>
 
           {/* Progress indicator - only show when tracking */}
-          {trackedPath && (
+          {globalProgress?.selectedPathId && selectedPath && (
             <div className="flex items-center gap-3 text-sm">
               <div className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg">
                 <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                <span className="font-medium">{trackedPath.pathName}</span>
+                <span className="font-medium">{selectedPath.name}</span>
                 {progressSummary && (
                   <span className="text-brand-600">
                     • {progressSummary.approved}/{progressSummary.total} complete
@@ -345,29 +385,29 @@ export default function Home() {
         filters={filters}
         matchingCount={matchingCount}
         onEdit={handleEditProfile}
-        selectedPathId={trackedPath?.pathId || null}
+        selectedPathId={globalProgress?.selectedPathId || null}
         completedStagesCount={progressSummary?.approved || 0}
       />
 
       {/* Main content area with timeline and tracker panel */}
       <div className="flex-1 flex overflow-hidden">
         {/* Timeline area */}
-        <div className={`flex-1 relative overflow-hidden transition-all ${trackedPath ? "mr-0" : ""}`}>
+        <div className={`flex-1 relative overflow-hidden transition-all ${globalProgress?.selectedPathId ? "mr-0" : ""}`}>
           <TimelineChart
             onStageClick={handleTimelineStageClick}
             filters={filters}
             onMatchingCountChange={handleMatchingCountChange}
             onSelectPath={handleSelectPath}
-            selectedPathId={trackedPath?.pathId || null}
-            trackedProgress={trackedPath}
+            selectedPathId={globalProgress?.selectedPathId || null}
+            globalProgress={globalProgress}
           />
         </div>
 
-        {/* Tracker Panel - shows when tracking a path */}
-        {trackedPath && selectedPath && (
+        {/* Tracker Panel - shows when a path is selected */}
+        {globalProgress && selectedPath && (
           <TrackerPanel
             path={selectedPath}
-            progress={trackedPath}
+            progress={globalProgress}
             onUpdateStage={handleUpdateStage}
             onUpdatePortedPD={handleUpdatePortedPD}
             onClose={() => setSelectedPath(null)}
@@ -377,7 +417,7 @@ export default function Home() {
         )}
 
         {/* Slide-out detail panel for stage info (only when not tracking) */}
-        {selectedNode && !trackedPath && (
+        {selectedNode && !globalProgress?.selectedPathId && (
           <>
             <div
               className="fixed inset-0 bg-black/20 z-40"
