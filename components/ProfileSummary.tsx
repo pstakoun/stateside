@@ -82,13 +82,27 @@ export default function ProfileSummary({
               </span>
             ))}
             
-            {/* Case Progress Indicator */}
-            {hasActiveCaseProgress && (
-              <span className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full whitespace-nowrap flex items-center gap-1">
+            {/* Case Progress Indicator - show if has active case progress */}
+            {hasActiveCaseProgress ? (
+              <button
+                onClick={onEditCase}
+                className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full whitespace-nowrap flex items-center gap-1.5 hover:bg-blue-200 transition-colors"
+              >
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                 {completedSteps}/{remainingSteps.length} steps
                 {pendingSteps > 0 && ` • ${pendingSteps} pending`}
-              </span>
+              </button>
+            ) : onEditCase && (
+              /* Subtle prompt to track case if not set up */
+              <button
+                onClick={onEditCase}
+                className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 rounded-full whitespace-nowrap flex items-center gap-1.5 hover:bg-amber-100 transition-colors border border-amber-200"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add my cases
+              </button>
             )}
           </div>
           <button
@@ -97,14 +111,6 @@ export default function ProfileSummary({
           >
             Edit
           </button>
-          {onEditCase && (
-            <button
-              onClick={onEditCase}
-              className="text-sm text-gray-500 hover:text-gray-700 font-medium whitespace-nowrap"
-            >
-              {hasActiveCaseProgress ? "Edit Case" : "Track Case"}
-            </button>
-          )}
         </div>
 
         <div className="text-sm text-gray-600 whitespace-nowrap">

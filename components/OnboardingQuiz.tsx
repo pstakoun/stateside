@@ -74,7 +74,6 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Move to case prompt step
     setStep("case_prompt");
   };
 
@@ -91,6 +90,86 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
     filters.hasInvestmentCapital,
   ].filter(Boolean).length;
 
+  // Case prompt step - shown after profile is complete
+  if (step === "case_prompt") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">One more thing...</h1>
+                <p className="text-sm text-gray-500">Do you have any immigration cases already in progress?</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-6 space-y-4">
+            <p className="text-sm text-gray-600">
+              If you&apos;ve already filed for PERM, I-140, I-485, or have an approved petition with a priority date, 
+              tracking your case will give you more accurate timelines.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3">
+              {/* Yes, I have cases */}
+              <button
+                onClick={() => handleFinish(true)}
+                className="p-4 rounded-xl border-2 border-brand-200 bg-brand-50 hover:bg-brand-100 text-left transition-all group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-brand-500 flex items-center justify-center flex-shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M5 12l5 5L20 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-brand-900">Yes, track my cases</div>
+                    <div className="text-sm text-brand-700 mt-0.5">
+                      I have filed applications or have an approved I-140
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* No, skip for now */}
+              <button
+                onClick={() => handleFinish(false)}
+                className="p-4 rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-left transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Skip for now</div>
+                    <div className="text-sm text-gray-500 mt-0.5">
+                      I&apos;m just exploring options or haven&apos;t started yet
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 text-center pt-2">
+              You can always add your cases later using &quot;Track My Case&quot; in the header
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile step - main onboarding form
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -115,7 +194,7 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleProfileSubmit}>
           <div className="px-6 py-5 space-y-6">
             {/* Current Status */}
             <div>
@@ -383,165 +462,6 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
                 </div>
               )}
             </div>
-
-            {/* Existing Case / Priority Date */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <label className="flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filters.hasApprovedI140}
-                  onChange={(e) => {
-                    updateFilter("hasApprovedI140", e.target.checked);
-                    if (!e.target.checked) {
-                      updateFilter("existingPriorityDate", null);
-                      updateFilter("existingPriorityDateCategory", null);
-                      updateFilter("needsNewPerm", undefined);
-                    }
-                  }}
-                  className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                />
-                <div>
-                  <span className="text-sm font-medium text-gray-900">
-                    I have an approved I-140 with a priority date
-                  </span>
-                  <p className="text-xs text-gray-500">Your priority date is portable to new petitions</p>
-                </div>
-              </label>
-
-              {filters.hasApprovedI140 && (
-                <div className="p-4 space-y-4 border-t border-gray-200">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      Priority date
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={filters.existingPriorityDate?.month || ""}
-                        onChange={(e) => {
-                          const month = parseInt(e.target.value);
-                          const year = filters.existingPriorityDate?.year || currentYear;
-                          updateFilter("existingPriorityDate", month ? { month, year } : null);
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
-                      >
-                        <option value="">Month</option>
-                        {months.map((m, i) => (
-                          <option key={m} value={i + 1}>{m}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={filters.existingPriorityDate?.year || ""}
-                        onChange={(e) => {
-                          const year = parseInt(e.target.value);
-                          const month = filters.existingPriorityDate?.month || 1;
-                          updateFilter("existingPriorityDate", year ? { month, year } : null);
-                        }}
-                        className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-brand-500 focus:border-brand-500"
-                      >
-                        <option value="">Year</option>
-                        {years.map((y) => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      EB category of your I-140
-                    </label>
-                    <div className="flex gap-2">
-                      {ebCategoryOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => updateFilter("existingPriorityDateCategory", option.value)}
-                          className={`flex-1 p-2 rounded-lg border-2 text-center transition-all ${
-                            filters.existingPriorityDateCategory === option.value
-                              ? "border-brand-500 bg-brand-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className={`font-medium text-sm ${
-                            filters.existingPriorityDateCategory === option.value ? "text-brand-700" : "text-gray-900"
-                          }`}>
-                            {option.label}
-                          </div>
-                          <div className="text-xs text-gray-500">{option.description}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Employer switch question */}
-                  <div className="mt-4 p-3 bg-amber-50 rounded-lg">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={filters.needsNewPerm === true}
-                        onChange={(e) => {
-                          updateFilter("needsNewPerm", e.target.checked ? true : undefined);
-                        }}
-                        className="mt-0.5 w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-amber-900">
-                          I&apos;m switching to a new employer
-                        </span>
-                        <p className="text-xs text-amber-700 mt-0.5">
-                          If you&apos;re staying with the same employer, you don&apos;t need to do PERM again.
-                          Your priority date can be used directly for a new I-485.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <p className="text-xs text-green-800">
-                      ✓ <strong>You don&apos;t need PERM again</strong> unless switching employers.
-                      Your priority date ({filters.existingPriorityDate ? `${months[filters.existingPriorityDate.month - 1]} ${filters.existingPriorityDate.year}` : "..."}) 
-                      can be used for any new petition and continues to &quot;age&quot; toward being current.
-                    </p>
-                  </div>
-
-                  <p className="text-xs text-gray-500 bg-blue-50 p-2 rounded-lg">
-                    💡 <strong>Priority Date Portability:</strong> Your PD can be used for any new I-140 petition, 
-                    even with a different employer or category. It keeps moving closer to &quot;current&quot; while you wait.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* In-Progress Case Section */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
-                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">
-                      Track your in-progress case
-                    </span>
-                    <p className="text-xs text-gray-500">Add receipt numbers, dates, and track status</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 border-t border-gray-200">
-                <p className="text-xs text-gray-600 mb-3">
-                  After saving your profile, use the <strong>&quot;Track My Case&quot;</strong> button to add detailed case information 
-                  including USCIS receipt numbers, filing dates, and current status.
-                </p>
-                <div className="flex items-center gap-2 text-xs text-brand-600">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 16v-4M12 8h.01" />
-                  </svg>
-                  <span>This helps calculate accurate timelines based on where you are in the process</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Footer */}
@@ -550,7 +470,7 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
               type="submit"
               className="w-full py-3 px-4 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
             >
-              Show my immigration paths
+              Continue
             </button>
             <p className="text-xs text-gray-500 text-center mt-3">
               You can update these preferences anytime

@@ -6,10 +6,9 @@ import PathDetail from "@/components/PathDetail";
 import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
 import CaseTracker from "@/components/CaseTracker";
-import ProgressDashboard from "@/components/ProgressDashboard";
 import { FilterState, defaultFilters } from "@/lib/filter-paths";
 import { CaseProgress } from "@/lib/case-progress";
-import { getStoredProfile, saveUserProfile, getStoredCaseProgress, saveCaseProgress, getCaseProgressOrCreate } from "@/lib/storage";
+import { getStoredProfile, saveUserProfile, getStoredCaseProgress, saveCaseProgress } from "@/lib/storage";
 
 export default function Home() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -18,7 +17,6 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showCaseTracker, setShowCaseTracker] = useState(false);
   const [caseProgress, setCaseProgress] = useState<CaseProgress | null>(null);
-  const [showProgressPanel, setShowProgressPanel] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load stored profile and case progress on mount
@@ -35,10 +33,6 @@ export default function Home() {
     
     if (storedCaseProgress) {
       setCaseProgress(storedCaseProgress);
-      // Auto-show progress panel if they have case data
-      if (storedCaseProgress.gcProcess.pathType && storedCaseProgress.gcProcess.pathType !== "none") {
-        setShowProgressPanel(true);
-      }
     }
     
     setIsLoaded(true);
@@ -48,10 +42,15 @@ export default function Home() {
     setMatchingCount(count);
   }, []);
 
-  const handleOnboardingComplete = (newFilters: FilterState) => {
+  const handleOnboardingComplete = (newFilters: FilterState, wantsToTrackCase?: boolean) => {
     setFilters(newFilters);
     saveUserProfile(newFilters);
     setShowOnboarding(false);
+    
+    // If user wants to track their case, open the case tracker
+    if (wantsToTrackCase) {
+      setShowCaseTracker(true);
+    }
   };
 
   const handleEditProfile = () => {
@@ -74,11 +73,6 @@ export default function Home() {
       };
       setFilters(updatedFilters);
       saveUserProfile(updatedFilters);
-    }
-    
-    // Show progress panel if they have real case data
-    if (progress.gcProcess.pathType && progress.gcProcess.pathType !== "none") {
-      setShowProgressPanel(true);
     }
   };
 
@@ -167,63 +161,24 @@ export default function Home() {
         onEditCase={handleOpenCaseTracker}
       />
 
-      {/* Timeline area with optional progress panel */}
-      <div className="flex-1 relative overflow-hidden flex">
-        {/* Progress Panel (left side) */}
-        {showProgressPanel && caseProgress && (
-          <div className="w-80 flex-shrink-0 border-r border-gray-200 bg-gray-50 overflow-y-auto p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Your Progress</h3>
-              <button
-                onClick={() => setShowProgressPanel(false)}
-                className="p-1 hover:bg-gray-200 rounded transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <ProgressDashboard
-              caseProgress={caseProgress}
-              filters={filters}
-              onEditCase={handleOpenCaseTracker}
+      {/* Timeline area */}
+      <div className="flex-1 relative overflow-hidden">
+        <TimelineChart
+          onStageClick={setSelectedNode}
+          filters={filters}
+          onMatchingCountChange={handleMatchingCountChange}
+        />
+
+        {/* Slide-out detail panel */}
+        {selectedNode && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/20 z-40"
+              onClick={() => setSelectedNode(null)}
             />
-          </div>
+            <PathDetail nodeId={selectedNode} onClose={() => setSelectedNode(null)} />
+          </>
         )}
-        
-        {/* Toggle button for progress panel */}
-        {caseProgress?.gcProcess?.pathType && caseProgress.gcProcess.pathType !== "none" && !showProgressPanel && (
-          <button
-            onClick={() => setShowProgressPanel(true)}
-            className="absolute left-4 top-4 z-20 flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-            <span className="text-sm font-medium text-gray-700">Show Progress</span>
-          </button>
-        )}
-
-        {/* Timeline Chart */}
-        <div className="flex-1 relative overflow-hidden">
-          <TimelineChart
-            onStageClick={setSelectedNode}
-            filters={filters}
-            onMatchingCountChange={handleMatchingCountChange}
-          />
-
-          {/* Slide-out detail panel */}
-          {selectedNode && (
-            <>
-              <div
-                className="fixed inset-0 bg-black/20 z-40"
-                onClick={() => setSelectedNode(null)}
-              />
-              <PathDetail nodeId={selectedNode} onClose={() => setSelectedNode(null)} />
-            </>
-          )}
-        </div>
       </div>
 
       {/* Footer with SEO content */}
