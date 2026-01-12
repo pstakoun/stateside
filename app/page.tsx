@@ -5,27 +5,52 @@ import TimelineChart from "@/components/TimelineChart";
 import PathDetail from "@/components/PathDetail";
 import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
-import CaseTracker from "@/components/CaseTracker";
 import { FilterState, defaultFilters } from "@/lib/filter-paths";
-import { CaseProgress } from "@/lib/case-progress";
 import { ComposedPath } from "@/lib/path-composer";
-import { getStoredProfile, saveUserProfile, getStoredCaseProgress, saveCaseProgress } from "@/lib/storage";
+import { getStoredProfile, saveUserProfile } from "@/lib/storage";
+
+// Key for storing progress in localStorage
+const PROGRESS_STORAGE_KEY = "stateside_progress";
+
+interface StoredProgress {
+  selectedPathId: string | null;
+  completedStages: string[]; // Array of "pathId:nodeId" strings
+}
+
+function loadProgress(): StoredProgress | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(PROGRESS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(progress: StoredProgress) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export default function Home() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [matchingCount, setMatchingCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showCaseTracker, setShowCaseTracker] = useState(false);
-  const [selectedPathForTracking, setSelectedPathForTracking] = useState<ComposedPath | null>(null);
-  const [trackedPathId, setTrackedPathId] = useState<string | null>(null);
-  const [caseProgress, setCaseProgress] = useState<CaseProgress | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Path tracking state - simplified
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
+  const [completedStages, setCompletedStages] = useState<Set<string>>(new Set());
 
-  // Load stored profile and case progress on mount
+  // Load stored profile and progress on mount
   useEffect(() => {
     const profile = getStoredProfile();
-    const storedCaseProgress = getStoredCaseProgress();
+    const storedProgress = loadProgress();
     
     if (profile) {
       setFilters(profile.filters);
@@ -34,12 +59,23 @@ export default function Home() {
       setShowOnboarding(true);
     }
     
-    if (storedCaseProgress) {
-      setCaseProgress(storedCaseProgress);
+    if (storedProgress) {
+      setSelectedPathId(storedProgress.selectedPathId);
+      setCompletedStages(new Set(storedProgress.completedStages));
     }
     
     setIsLoaded(true);
   }, []);
+
+  // Save progress whenever it changes
+  useEffect(() => {
+    if (isLoaded) {
+      saveProgress({
+        selectedPathId,
+        completedStages: Array.from(completedStages),
+      });
+    }
+  }, [selectedPathId, completedStages, isLoaded]);
 
   const handleMatchingCountChange = useCallback((count: number) => {
     setMatchingCount(count);
@@ -55,39 +91,47 @@ export default function Home() {
     setShowOnboarding(true);
   };
 
-  const handleCaseProgressUpdate = (progress: CaseProgress) => {
-    setCaseProgress(progress);
-    saveCaseProgress(progress);
-    
-    // Track which path is being tracked
-    if (selectedPathForTracking) {
-      setTrackedPathId(selectedPathForTracking.id);
-    }
-    
-    // Update filters based on case progress
-    if (progress.effectivePriorityDate && progress.effectiveEBCategory) {
-      const updatedFilters: FilterState = {
-        ...filters,
-        hasApprovedI140: true,
-        existingPriorityDate: progress.effectivePriorityDate,
-        existingPriorityDateCategory: progress.effectiveEBCategory,
-        // If they have approved I-140 with same employer, no new PERM needed
-        needsNewPerm: false,
-      };
-      setFilters(updatedFilters);
-      saveUserProfile(updatedFilters);
+  // Handle selecting a path to track
+  const handleSelectPath = (path: ComposedPath) => {
+    if (selectedPathId === path.id) {
+      // Clicking selected path again deselects it
+      setSelectedPathId(null);
+    } else {
+      setSelectedPathId(path.id);
     }
   };
 
-  const handleTrackPath = (path: ComposedPath) => {
-    setSelectedPathForTracking(path);
-    setShowCaseTracker(true);
+  // Handle toggling a stage as complete
+  const handleToggleStageComplete = (pathId: string, stageNodeId: string) => {
+    const key = `${pathId}:${stageNodeId}`;
+    setCompletedStages(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   };
 
-  const handleOpenCaseTracker = () => {
-    // If already tracking a path, use that; otherwise open without a selected path
-    setShowCaseTracker(true);
+  // Calculate progress for selected path
+  const getProgressSummary = () => {
+    if (!selectedPathId) return null;
+    
+    // Count completed stages for this path
+    let total = 0;
+    let completed = 0;
+    completedStages.forEach(key => {
+      if (key.startsWith(`${selectedPathId}:`)) {
+        completed++;
+      }
+    });
+    
+    return { completed, total };
   };
+
+  const progressSummary = getProgressSummary();
 
   // Don't render until we've checked localStorage (prevents flash)
   if (!isLoaded) {
@@ -105,19 +149,6 @@ export default function Home() {
         <OnboardingQuiz
           onComplete={handleOnboardingComplete}
           initialFilters={filters}
-        />
-      )}
-
-      {/* Case Tracker Modal */}
-      {showCaseTracker && (
-        <CaseTracker
-          onClose={() => {
-            setShowCaseTracker(false);
-            setSelectedPathForTracking(null);
-          }}
-          onUpdate={handleCaseProgressUpdate}
-          initialProgress={caseProgress || undefined}
-          selectedPath={selectedPathForTracking}
         />
       )}
 
@@ -151,17 +182,20 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Track My Case Button */}
-          <button
-            onClick={handleOpenCaseTracker}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-            <span className="hidden sm:inline">Track My Case</span>
-          </button>
+          {/* Progress indicator - only show when tracking */}
+          {selectedPathId && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+              <span>Tracking progress</span>
+              <button
+                onClick={() => setSelectedPathId(null)}
+                className="text-gray-400 hover:text-gray-600 ml-1"
+                title="Stop tracking"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -170,8 +204,8 @@ export default function Home() {
         filters={filters}
         matchingCount={matchingCount}
         onEdit={handleEditProfile}
-        caseProgress={caseProgress}
-        onEditCase={handleOpenCaseTracker}
+        selectedPathId={selectedPathId}
+        completedStagesCount={progressSummary?.completed || 0}
       />
 
       {/* Timeline area */}
@@ -180,8 +214,10 @@ export default function Home() {
           onStageClick={setSelectedNode}
           filters={filters}
           onMatchingCountChange={handleMatchingCountChange}
-          onTrackPath={handleTrackPath}
-          trackedPathId={trackedPathId}
+          onSelectPath={handleSelectPath}
+          selectedPathId={selectedPathId}
+          completedStages={completedStages}
+          onToggleStageComplete={handleToggleStageComplete}
         />
 
         {/* Slide-out detail panel */}

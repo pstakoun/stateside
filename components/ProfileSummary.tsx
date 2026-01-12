@@ -9,22 +9,21 @@ import {
   ebCategoryLabels,
   formatPriorityDateShort,
 } from "@/lib/filter-paths";
-import { CaseProgress, calculateRemainingSteps, calculateEffectivePriorityDate } from "@/lib/case-progress";
 
 interface ProfileSummaryProps {
   filters: FilterState;
   matchingCount: number;
   onEdit: () => void;
-  caseProgress?: CaseProgress | null;
-  onEditCase?: () => void;
+  selectedPathId?: string | null;
+  completedStagesCount?: number;
 }
 
 export default function ProfileSummary({
   filters,
   matchingCount,
   onEdit,
-  caseProgress,
-  onEditCase,
+  selectedPathId,
+  completedStagesCount = 0,
 }: ProfileSummaryProps) {
   const tags: string[] = [
     statusLabels[filters.currentStatus],
@@ -49,16 +48,9 @@ export default function ProfileSummary({
   if (filters.isMarriedToUSCitizen) tags.push("Married to US citizen");
   if (filters.hasInvestmentCapital) tags.push("EB-5 investor");
 
-  // Calculate case progress info
-  const hasActiveCaseProgress = caseProgress?.gcProcess?.pathType && caseProgress.gcProcess.pathType !== "none";
-  const remainingSteps = hasActiveCaseProgress ? calculateRemainingSteps(caseProgress) : [];
-  const completedSteps = remainingSteps.filter(s => s.status === "complete").length;
-  const pendingSteps = remainingSteps.filter(s => s.status === "pending").length;
-  const effectivePD = hasActiveCaseProgress ? calculateEffectivePriorityDate(caseProgress.gcProcess) : null;
-
-  // Show existing priority date (from case progress or filters)
-  const priorityDate = effectivePD?.date || filters.existingPriorityDate;
-  const priorityDateCategory = effectivePD?.category || filters.existingPriorityDateCategory;
+  // Show existing priority date from filters
+  const priorityDate = filters.existingPriorityDate;
+  const priorityDateCategory = filters.existingPriorityDateCategory;
   
   if (priorityDate) {
     const pdStr = formatPriorityDateShort(priorityDate);
@@ -82,27 +74,14 @@ export default function ProfileSummary({
               </span>
             ))}
             
-            {/* Case Progress Indicator - show if has active case progress */}
-            {hasActiveCaseProgress ? (
-              <button
-                onClick={onEditCase}
-                className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full whitespace-nowrap flex items-center gap-1.5 hover:bg-blue-200 transition-colors"
-              >
-                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                {completedSteps}/{remainingSteps.length} steps
-                {pendingSteps > 0 && ` • ${pendingSteps} pending`}
-              </button>
-            ) : onEditCase && (
-              /* Subtle prompt to track case if not set up */
-              <button
-                onClick={onEditCase}
-                className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 rounded-full whitespace-nowrap flex items-center gap-1.5 hover:bg-amber-100 transition-colors border border-amber-200"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
+            {/* Progress indicator when tracking a path */}
+            {selectedPathId && completedStagesCount > 0 && (
+              <span className="px-2.5 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full whitespace-nowrap flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M20 6L9 17l-5-5" />
                 </svg>
-                Add my cases
-              </button>
+                {completedStagesCount} completed
+              </span>
             )}
           </div>
           <button
