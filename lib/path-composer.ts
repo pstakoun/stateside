@@ -875,50 +875,52 @@ function composePath(
     }
 
     // STEP 2: Handle approval wait and update I-485 duration
-    // The I-485 bar should show TOTAL time pending (from filing to approval)
-    // which is: max(USCIS processing time, approval wait after filing)
+    // The I-485 pending time = max(USCIS processing time, approval wait after filing)
+    // Both happen in parallel, so whichever is longer is the bottleneck
     const additionalApprovalWait = approvalWaitMonths - filingWaitMonths;
     const additionalApprovalWaitYears = additionalApprovalWait / 12;
     
-    const i485BaseMin = i485Stage.durationYears.min;  // ~0.83 years (10 mo)
-    const i485BaseMax = i485Stage.durationYears.max;  // ~1.5 years (18 mo)
+    const i485BaseMinMonths = Math.round(i485Stage.durationYears.min * 12);  // ~10 months
+    const i485BaseMaxMonths = Math.round(i485Stage.durationYears.max * 12);  // ~18 months
     
     if (additionalApprovalWait > 0) {
       // There's approval wait after filing
       // I-485 pending time = max(processing, approval wait)
-      const effectiveMin = Math.max(i485BaseMin, additionalApprovalWaitYears * 0.8);
-      const effectiveMax = Math.max(i485BaseMax, additionalApprovalWaitYears);
+      // The actual time is whichever completes LAST
+      const effectiveMinMonths = Math.max(i485BaseMinMonths, Math.round(additionalApprovalWait));
+      const effectiveMaxMonths = Math.max(i485BaseMaxMonths, Math.round(additionalApprovalWait));
       
-      // Format the approval wait for display
-      const approvalWaitStr = additionalApprovalWait <= 6 
-        ? `${Math.round(additionalApprovalWait)} mo`
-        : additionalApprovalWait <= 18 
-          ? `${Math.round(additionalApprovalWait)} mo`
-          : `${(additionalApprovalWait / 12).toFixed(1)} yr`;
+      const effectiveMin = effectiveMinMonths / 12;
+      const effectiveMax = effectiveMaxMonths / 12;
       
-      // Update I-485 duration to reflect total pending time
-      // ALWAYS show the approval wait in the display so users know it's considered
-      if (effectiveMax > i485BaseMax) {
-        // Approval wait extends beyond normal processing
-        stages[currentI485Index].durationYears = {
-          min: effectiveMin,
-          max: effectiveMax,
-          display: formatPriorityWait(Math.round(effectiveMax * 12)),
-        };
-        stages[currentI485Index].note = `I-485 pending ${formatPriorityWait(Math.round(additionalApprovalWait))}: EAD + AP valid, AC21 portability after 180 days. Waiting for Final Action date (${approvalDateStr}).`;
+      // Determine what's shown based on how approval wait affects timeline
+      let display: string;
+      let note: string;
+      
+      if (additionalApprovalWait > i485BaseMaxMonths) {
+        // Approval wait is the bottleneck - exceeds max processing time
+        // Timeline is determined entirely by approval wait
+        display = formatPriorityWait(effectiveMaxMonths);
+        note = `I-485 pending ${display}: EAD + AP valid, AC21 portability after 180 days. Waiting for Final Action date (${approvalDateStr}).`;
         stages[currentI485Index].velocityInfo = approvalVelocityInfo;
+      } else if (additionalApprovalWait > i485BaseMinMonths) {
+        // Approval wait raises the minimum but max is still processing time
+        // Shows the approval wait is affecting the timeline
+        display = `${effectiveMinMonths}-${effectiveMaxMonths} mo`;
+        note = `I-485 pending: EAD + AP valid, AC21 portability after 180 days. Min ${Math.round(additionalApprovalWait)} mo for visa availability.`;
       } else {
-        // Approval wait fits within normal processing time
-        // But STILL show it in the display to be transparent
-        const minMo = Math.round(effectiveMin * 12);
-        const maxMo = Math.round(effectiveMax * 12);
-        stages[currentI485Index].durationYears = {
-          min: effectiveMin,
-          max: effectiveMax,
-          display: `${minMo}-${maxMo} mo (${approvalWaitStr} wait)`,
-        };
-        stages[currentI485Index].note = `I-485 pending: EAD + AP valid, AC21 portability after 180 days. Final Action: ${approvalDateStr}.`;
+        // Approval wait is shorter than processing - doesn't affect timeline
+        // Processing time is the bottleneck
+        display = `${i485BaseMinMonths}-${i485BaseMaxMonths} mo`;
+        note = `I-485 pending: EAD + AP valid, AC21 portability after 180 days.`;
       }
+      
+      stages[currentI485Index].durationYears = {
+        min: effectiveMin,
+        max: effectiveMax,
+        display,
+      };
+      stages[currentI485Index].note = note;
       
       // Update GC marker position based on new I-485 duration
       const i485NewEndYear = stages[currentI485Index].startYear + effectiveMax;
