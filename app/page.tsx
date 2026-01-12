@@ -5,8 +5,10 @@ import TimelineChart from "@/components/TimelineChart";
 import PathDetail from "@/components/PathDetail";
 import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
+import CaseTrackerModal from "@/components/CaseTrackerModal";
 import { FilterState, defaultFilters } from "@/lib/filter-paths";
-import { getStoredProfile, saveUserProfile } from "@/lib/storage";
+import { getStoredProfile, getStoredCaseProfile, saveUserProfile } from "@/lib/storage";
+import { CaseProfile } from "@/lib/case-types";
 
 export default function Home() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -14,16 +16,20 @@ export default function Home() {
   const [matchingCount, setMatchingCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showCaseTracker, setShowCaseTracker] = useState(false);
+  const [caseProfile, setCaseProfile] = useState<CaseProfile>({ cases: [], selectedCaseId: null });
 
   // Load stored profile on mount
   useEffect(() => {
     const profile = getStoredProfile();
+    const storedCases = getStoredCaseProfile();
     if (profile) {
       setFilters(profile.filters);
       setShowOnboarding(false);
     } else {
       setShowOnboarding(true);
     }
+    setCaseProfile(storedCases);
     setIsLoaded(true);
   }, []);
 
@@ -40,6 +46,10 @@ export default function Home() {
   const handleEditProfile = () => {
     setShowOnboarding(true);
   };
+
+  const selectedTrackedCase = caseProfile.selectedCaseId
+    ? caseProfile.cases.find((c) => c.id === caseProfile.selectedCaseId) ?? null
+    : null;
 
   // Don't render until we've checked localStorage (prevents flash)
   if (!isLoaded) {
@@ -95,6 +105,8 @@ export default function Home() {
         filters={filters}
         matchingCount={matchingCount}
         onEdit={handleEditProfile}
+        onTrackCase={() => setShowCaseTracker(true)}
+        hasTrackedCase={!!selectedTrackedCase}
       />
 
       {/* Timeline area */}
@@ -103,6 +115,7 @@ export default function Home() {
           onStageClick={setSelectedNode}
           filters={filters}
           onMatchingCountChange={handleMatchingCountChange}
+          trackedCase={selectedTrackedCase}
         />
 
         {/* Slide-out detail panel */}
@@ -138,6 +151,17 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Case Tracker Modal */}
+      {showCaseTracker && (
+        <CaseTrackerModal
+          isOpen={showCaseTracker}
+          onClose={() => setShowCaseTracker(false)}
+          caseProfile={caseProfile}
+          defaultCountryOfBirth={filters.countryOfBirth}
+          onCaseProfileChange={setCaseProfile}
+        />
+      )}
 
       {/* Screen reader only - detailed description for accessibility and AI crawlers */}
       <div className="sr-only" aria-label="About Stateside">

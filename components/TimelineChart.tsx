@@ -4,9 +4,11 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
 import { generatePaths, ComposedStage, setProcessingTimes } from "@/lib/path-composer";
-import { adaptDynamicData } from "@/lib/processing-times";
+import { adaptDynamicData, ProcessingTimes } from "@/lib/processing-times";
 import { DynamicData } from "@/lib/dynamic-data";
 import { trackStageClick, trackPathsGenerated } from "@/lib/analytics";
+import { TrackedCase } from "@/lib/case-types";
+import { buildTrackedCasePath } from "@/lib/case-timeline";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -18,6 +20,7 @@ interface TimelineChartProps {
   onStageClick: (nodeId: string) => void;
   filters: FilterState;
   onMatchingCountChange: (count: number) => void;
+  trackedCase?: TrackedCase | null;
 }
 
 const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -37,10 +40,12 @@ export default function TimelineChart({
   onStageClick,
   filters,
   onMatchingCountChange,
+  trackedCase,
 }: TimelineChartProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
+  const [processingTimes, setProcessingTimesState] = useState<ProcessingTimes | null>(null);
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"] | undefined>(undefined);
   const [datesForFiling, setDatesForFiling] = useState<DynamicData["datesForFiling"] | undefined>(undefined);
 
@@ -54,6 +59,7 @@ export default function TimelineChart({
           if (result.success && result.data) {
             const adapted = adaptDynamicData(result.data);
             setProcessingTimes(adapted);
+            setProcessingTimesState(adapted);
             // Final Action Dates - for determining when case will be approved
             setPriorityDates(result.data.priorityDates);
             // Dates for Filing - for determining when you can submit I-485
@@ -79,7 +85,22 @@ export default function TimelineChart({
     const generatedPaths = generatePaths(filters, priorityDates, datesForFiling);
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
-  }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates, datesForFiling]);
+  }, [filters, onMatchingCountChange, priorityDates, datesForFiling]);
+
+  const trackedPath = useMemo(() => {
+    if (!trackedCase || !processingTimes) return null;
+    try {
+      return buildTrackedCasePath({
+        trackedCase,
+        processingTimes,
+        finalActionDates: priorityDates,
+        datesForFiling,
+      });
+    } catch (e) {
+      console.error("Failed to build tracked case path:", e);
+      return null;
+    }
+  }, [trackedCase, processingTimes, priorityDates, datesForFiling]);
 
   // Track paths generated for analytics (debounced to avoid duplicate events)
   const lastTrackedFilters = useRef<string>("");
@@ -154,6 +175,18 @@ export default function TimelineChart({
 
           {/* Path lanes */}
           <div className="relative py-4">
+            {trackedPath && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold text-gray-900">
+                    Your case: {trackedPath.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Estimated remaining: {trackedPath.totalYears.display}
+                  </div>
+                </div>
+              </div>
+            )}
             {paths.length === 0 && (
               <div className="py-12 text-center text-gray-500">
                 <p className="text-lg font-medium">No matching paths</p>
@@ -162,7 +195,7 @@ export default function TimelineChart({
                 </p>
               </div>
             )}
-            {paths.map((path) => {
+            {[...(trackedPath ? [trackedPath] : []), ...paths].map((path) => {
               const isSelected = selectedPath === path.id;
               const isDimmed = selectedPath !== null && !isSelected;
               const multiTrack = hasMultipleTracks(path.stages);
@@ -191,7 +224,8 @@ export default function TimelineChart({
                       {path.name}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {path.totalYears.display} · ${path.estimatedCost.toLocaleString()}
+                      {path.totalYears.display}
+                      {path.estimatedCost > 0 ? ` · $${path.estimatedCost.toLocaleString()}` : ""}
                     </div>
                     <div className="flex items-center justify-end gap-1.5 mt-0.5">
                       <span className="text-[10px] text-brand-600 font-medium">

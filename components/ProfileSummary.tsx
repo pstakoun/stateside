@@ -14,12 +14,16 @@ interface ProfileSummaryProps {
   filters: FilterState;
   matchingCount: number;
   onEdit: () => void;
+  onTrackCase?: () => void;
+  hasTrackedCase?: boolean;
 }
 
 export default function ProfileSummary({
   filters,
   matchingCount,
   onEdit,
+  onTrackCase,
+  hasTrackedCase,
 }: ProfileSummaryProps) {
   const tags: string[] = [
     statusLabels[filters.currentStatus],
@@ -67,12 +71,26 @@ export default function ProfileSummary({
               </span>
             ))}
           </div>
-          <button
-            onClick={onEdit}
-            className="text-sm text-brand-600 hover:text-brand-700 font-medium whitespace-nowrap"
-          >
-            Edit
-          </button>
+          <div className="flex items-center gap-3 whitespace-nowrap">
+            <button
+              onClick={onEdit}
+              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Edit
+            </button>
+            {onTrackCase && (
+              <button
+                onClick={onTrackCase}
+                className={`text-sm font-medium ${
+                  hasTrackedCase
+                    ? "text-emerald-700 hover:text-emerald-800"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                Track case
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="text-sm text-gray-600 whitespace-nowrap">
