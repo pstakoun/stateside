@@ -931,19 +931,9 @@ export default function TimelineChart({
                             {/* Progress fill for filed stages */}
                             {isFiled && !isApproved && progressPercent > 0 && (
                               <div 
-                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-700/40 to-blue-600/20"
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-700/40 to-blue-600/20 rounded-l"
                                 style={{ width: `${progressPercent}%` }}
                               />
-                            )}
-                            
-                            {/* Now marker - vertical line showing current position */}
-                            {isFiled && !isApproved && progressPercent > 0 && progressPercent < 100 && (
-                              <div 
-                                className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-sm"
-                                style={{ left: `${progressPercent}%` }}
-                              >
-                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full border-2 border-blue-600 shadow-sm" />
-                              </div>
                             )}
                             
                             <div className="h-full px-1.5 flex flex-col justify-center overflow-hidden relative z-10">
