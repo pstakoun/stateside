@@ -141,6 +141,18 @@ export default function Home() {
     setMatchingCount(count);
   }, []);
 
+  // Update selected path when paths are regenerated (e.g., after filter/PD change)
+  const handlePathsGenerated = useCallback((paths: ComposedPath[]) => {
+    if (globalProgress?.selectedPathId && selectedPath) {
+      // Find the updated version of the selected path
+      const updatedPath = paths.find(p => p.id === globalProgress.selectedPathId);
+      if (updatedPath && updatedPath.totalYears !== selectedPath.totalYears) {
+        // Path's timeline changed - update it
+        setSelectedPath(updatedPath);
+      }
+    }
+  }, [globalProgress?.selectedPathId, selectedPath]);
+
   const handleOnboardingComplete = (newFilters: FilterState) => {
     setFilters(newFilters);
     saveUserProfile(newFilters);
@@ -398,6 +410,7 @@ export default function Home() {
             filters={filters}
             onMatchingCountChange={handleMatchingCountChange}
             onSelectPath={handleSelectPath}
+            onPathsGenerated={handlePathsGenerated}
             selectedPathId={globalProgress?.selectedPathId || null}
             globalProgress={globalProgress}
           />

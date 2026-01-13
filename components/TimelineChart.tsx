@@ -20,6 +20,7 @@ interface TimelineChartProps {
   filters: FilterState;
   onMatchingCountChange: (count: number) => void;
   onSelectPath?: (path: ComposedPath) => void;
+  onPathsGenerated?: (paths: ComposedPath[]) => void;
   selectedPathId?: string | null;
   globalProgress?: GlobalProgress | null;
 }
@@ -98,6 +99,7 @@ export default function TimelineChart({
   filters,
   onMatchingCountChange,
   onSelectPath,
+  onPathsGenerated,
   selectedPathId,
   globalProgress,
 }: TimelineChartProps) {
@@ -149,6 +151,13 @@ export default function TimelineChart({
     onMatchingCountChange(generatedPaths.length);
     return generatedPaths;
   }, [filters, onMatchingCountChange, processingTimesLoaded, priorityDates, datesForFiling]);
+
+  // Notify parent when paths are regenerated (for updating selected path)
+  useEffect(() => {
+    if (paths.length > 0 && onPathsGenerated) {
+      onPathsGenerated(paths);
+    }
+  }, [paths, onPathsGenerated]);
 
   // Sort paths with tracked path at top
   const sortedPaths = useMemo(() => {
