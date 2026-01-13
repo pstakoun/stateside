@@ -4,6 +4,14 @@ import { useEffect, useRef, useMemo } from "react";
 import { ComposedPath, ComposedStage } from "@/lib/path-composer";
 import { GlobalProgress, StageProgress } from "@/app/page";
 import visaData from "@/data/visa-paths.json";
+import { 
+  PROCESSING_STEP_TIMES, 
+  canEstablishPriorityDate, 
+  PRIORITY_DATE_STAGES,
+  isStatusVisa,
+  STATUS_VISA_VALIDITY_MONTHS,
+  STATUS_VISA_PROCESSING_MONTHS,
+} from "@/lib/constants";
 
 interface TrackerPanelProps {
   path: ComposedPath;
@@ -79,21 +87,8 @@ function formatMonthsRemaining(months: number): string {
   return `~${years.toFixed(1)} years`;
 }
 
-// Stages that can establish priority dates
-const PRIORITY_DATE_STAGES = ["i140", "perm", "eb2niw", "eb1a", "eb1b", "eb1c"];
-
-// Typical processing times in months for estimation
-const TYPICAL_PROCESSING_MONTHS: Record<string, { min: number; max: number }> = {
-  pwd: { min: 5, max: 8 },
-  recruit: { min: 2, max: 3 },
-  perm: { min: 12, max: 18 },
-  i140: { min: 6, max: 12 },
-  i485: { min: 8, max: 24 },
-  eb1a: { min: 6, max: 12 },
-  eb1b: { min: 6, max: 12 },
-  eb1c: { min: 6, max: 12 },
-  eb2niw: { min: 6, max: 15 },
-};
+// Use centralized constants from lib/constants.ts
+// PROCESSING_STEP_TIMES, canEstablishPriorityDate are imported above
 
 // Stage item component
 function StageItem({
@@ -113,7 +108,7 @@ function StageItem({
 }) {
   const node = getNode(stage.nodeId);
   const nodeName = node?.name || stage.nodeId;
-  const canHavePriorityDate = PRIORITY_DATE_STAGES.includes(stage.nodeId);
+  const canHavePriorityDateVal = canEstablishPriorityDate(stage.nodeId);
   
   // Skip the final green card stage - it's implied
   if (stage.nodeId === "gc") return null;
@@ -122,24 +117,41 @@ function StageItem({
   if (stage.isPriorityWait) return null;
 
   // Calculate remaining time for filed stages
+  // For status visas, this is the processing time to get approved
+  // For processing steps, this is the time until completion
   const remainingTime = useMemo(() => {
     if (stageProgress.status !== "filed" || !stageProgress.filedDate) return null;
     
     const filedDate = parseDate(stageProgress.filedDate);
     if (!filedDate) return null;
     
-    const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
-    if (!typical) return null;
-    
     const now = new Date();
     const monthsElapsed = monthsBetween(filedDate, now);
-    const avgProcessing = (typical.min + typical.max) / 2;
+    
+    // For status visas, use the shorter processing time (not validity period)
+    if (isStatusVisa(stage.nodeId)) {
+      const processingMonths = STATUS_VISA_PROCESSING_MONTHS[stage.nodeId] || 3;
+      const remaining = Math.max(0, processingMonths - monthsElapsed);
+      return {
+        elapsed: monthsElapsed,
+        remaining,
+        typical: { min: processingMonths * 0.5, max: processingMonths * 1.5 },
+        isStatusVisa: true,
+      };
+    }
+    
+    // For processing steps, use centralized processing times
+    const typical = PROCESSING_STEP_TIMES[stage.nodeId];
+    if (!typical) return null;
+    
+    const avgProcessing = typical.typical;
     const remaining = Math.max(0, avgProcessing - monthsElapsed);
     
     return {
       elapsed: monthsElapsed,
       remaining,
-      typical,
+      typical: { min: typical.min, max: typical.max },
+      isStatusVisa: false,
     };
   }, [stageProgress.status, stageProgress.filedDate, stage.nodeId]);
 
@@ -205,6 +217,11 @@ function StageItem({
           {stageProgress.status === "approved" && stageProgress.approvedDate && (
             <div className="text-xs text-green-600">
               ✓ Approved {formatDateDisplay(stageProgress.approvedDate)}
+              {isStatusVisa(stage.nodeId) && (
+                <span className="text-gray-500 ml-1">
+                  (valid {STATUS_VISA_VALIDITY_MONTHS[stage.nodeId] / 12} yrs)
+                </span>
+              )}
             </div>
           )}
           {stageProgress.receiptNumber && (
@@ -297,7 +314,7 @@ function StageItem({
           )}
 
           {/* Priority date (for I-140, PERM, etc.) */}
-          {canHavePriorityDate && stageProgress.status === "approved" && (
+          {canHavePriorityDateVal && stageProgress.status === "approved" && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 Priority Date
@@ -381,7 +398,7 @@ export default function TrackerPanel({
 
   // Find priority date from current path's approved I-140 or equivalent
   const currentPathPD = useMemo(() => {
-    for (const nodeId of PRIORITY_DATE_STAGES) {
+    for (const nodeId of Array.from(PRIORITY_DATE_STAGES)) {
       const stageProgress = progress.stages[nodeId];
       if (stageProgress?.status === "approved" && stageProgress.priorityDate) {
         return { date: stageProgress.priorityDate, source: getNode(nodeId)?.name || nodeId };
@@ -403,48 +420,54 @@ export default function TrackerPanel({
     return currentPathPD;
   }, [progress.portedPriorityDate, currentPathPD]);
 
-  // Calculate estimated completion based on GREEN CARD date (not status track end)
+  // Calculate estimated completion based on ACTUAL progress and remaining stages
+  // This aligns with the timeline visualization logic
   const estimatedCompletion = useMemo(() => {
     const now = new Date();
     
-    // Find when the Green Card is obtained (GC marker position)
-    // This is the END of the GC track, not the overall path max (which includes status track)
-    const gcMarker = path.stages.find(s => s.nodeId === "gc");
-    const gcEndYears = gcMarker?.startYear || path.totalYears?.max || 0;
-    const gcEndMonths = gcEndYears * 12;
-    
-    // Calculate time already elapsed on GC track stages
-    let completedMonths = 0;
+    // Calculate remaining months for each GC track stage
+    let remainingMonths = 0;
     
     // Only count GC track stages (not status track like TN/H-1B)
     const gcStages = path.stages.filter(s => s.track === "gc" && s.nodeId !== "gc" && !s.isPriorityWait);
     
     for (const stage of gcStages) {
       const sp = progress.stages[stage.nodeId] || { status: "not_started" };
-      const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
+      
+      // Get typical processing time from centralized constants
+      const typical = PROCESSING_STEP_TIMES[stage.nodeId];
+      const stageTypicalMonths = typical?.typical || (stage.durationYears?.max || 0) * 12;
       
       if (sp.status === "approved") {
-        // Fully completed - but for concurrent stages, don't double count
-        if (!stage.isConcurrent) {
-          completedMonths += stageMaxMonths;
-        }
+        // Stage fully completed - no remaining time
+        continue;
       } else if (sp.status === "filed" && sp.filedDate) {
-        // Partially completed - calculate elapsed time
+        // Partially completed - calculate remaining time
         const filedDate = parseDate(sp.filedDate);
         if (filedDate) {
           const elapsedMonths = monthsBetween(filedDate, now);
+          const stageRemaining = Math.max(0, stageTypicalMonths - elapsedMonths);
           if (!stage.isConcurrent) {
-            completedMonths += Math.min(elapsedMonths, stageMaxMonths);
+            remainingMonths += stageRemaining;
           }
+        }
+      } else {
+        // Not started - add full typical duration
+        if (!stage.isConcurrent) {
+          remainingMonths += stageTypicalMonths;
         }
       }
     }
     
-    // Remaining = GC end time - completed GC stages
-    const remainingMonths = Math.max(0, gcEndMonths - completedMonths);
+    // Add PD wait time if exists (from path composition)
+    const pdWaitStage = path.stages.find(s => s.isPriorityWait);
+    if (pdWaitStage) {
+      const pdWaitMonths = (pdWaitStage.durationYears?.max || 0) * 12;
+      remainingMonths += pdWaitMonths;
+    }
     
     // Check for uncertainty (PD wait stages exist)
-    const hasUncertainty = path.stages.some(s => s.isPriorityWait);
+    const hasUncertainty = !!pdWaitStage;
 
     // Calculate estimated date
     const estimatedDate = new Date(now);
@@ -455,7 +478,7 @@ export default function TrackerPanel({
       months: remainingMonths,
       hasUncertainty,
     };
-  }, [path.totalYears, path.stages, progress.stages]);
+  }, [path.stages, progress.stages]);
 
   // Priority date aging benefit
   const pdAgingBenefit = useMemo(() => {
@@ -469,7 +492,7 @@ export default function TrackerPanel({
       if (stage.nodeId === "i485") break;
       
       const sp = progress.stages[stage.nodeId] || { status: "not_started" };
-      const typical = TYPICAL_PROCESSING_MONTHS[stage.nodeId];
+      const typical = PROCESSING_STEP_TIMES[stage.nodeId];
       
       if (sp.status === "approved") continue;
       
@@ -477,10 +500,10 @@ export default function TrackerPanel({
         const filedDate = parseDate(sp.filedDate);
         if (filedDate && typical) {
           const elapsed = monthsBetween(filedDate, now);
-          monthsUntilI485 += Math.max(0, (typical.min + typical.max) / 2 - elapsed);
+          monthsUntilI485 += Math.max(0, typical.typical - elapsed);
         }
       } else if (typical) {
-        monthsUntilI485 += (typical.min + typical.max) / 2;
+        monthsUntilI485 += typical.typical;
       }
     }
 

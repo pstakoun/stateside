@@ -8,6 +8,14 @@ import { adaptDynamicData } from "@/lib/processing-times";
 import { DynamicData } from "@/lib/dynamic-data";
 import { trackStageClick, trackPathsGenerated } from "@/lib/analytics";
 import { GlobalProgress, StageProgress } from "@/app/page";
+import { 
+  STATUS_VISA_NODES, 
+  STATUS_VISA_VALIDITY_MONTHS, 
+  STATUS_VISA_PROCESSING_MONTHS,
+  PROCESSING_STEP_TIMES,
+  getTypicalProcessingMonths,
+  isStatusVisa,
+} from "@/lib/constants";
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -93,50 +101,8 @@ function getFiledProgress(filedDate: string | undefined, durationMonths: number)
   return Math.min(100, Math.max(0, (elapsed / durationMonths) * 100));
 }
 
-// Status visas - these have a VALIDITY PERIOD after approval
-// For these, approved date = START of validity, not end of processing
-const STATUS_VISA_NODES = new Set(['tn', 'h1b', 'opt', 'f1', 'l1a', 'l1b', 'o1']);
-
-// Validity duration in months for status visas (how long the visa is valid after approval)
-const STATUS_VISA_VALIDITY_MONTHS: Record<string, number> = {
-  tn: 36,   // TN valid for 3 years
-  h1b: 36,  // H1B valid for 3 years (initial)
-  opt: 36,  // OPT valid for 1-3 years (STEM)
-  f1: 48,   // Student status duration
-  l1a: 36,  // L1A valid for 3 years
-  l1b: 36,  // L1B valid for 3 years
-  o1: 36,   // O1 valid for 3 years
-};
-
-// Typical processing times in months for status visa applications
-const STATUS_VISA_PROCESSING_MONTHS: Record<string, number> = {
-  tn: 0.5,  // TN at border: same day to a few weeks
-  h1b: 3,   // H1B: 2-4 months (or 15 days premium)
-  opt: 3,   // OPT: 2-4 months
-  f1: 2,    // F1: 1-3 months
-  l1a: 3,   // L1: 2-4 months
-  l1b: 3,
-  o1: 3,    // O1: 2-4 months (or 15 days premium)
-};
-
-// Typical processing times in months for GC processing steps
-const PROCESSING_STEP_MONTHS: Record<string, number> = {
-  pwd: 7,
-  recruit: 2.5,
-  perm: 15,
-  i140: 9,
-  i485: 12,
-  eb1a: 9,
-  eb1b: 9,
-  eb1c: 9,
-  eb2niw: 12,
-};
-
-// Combined lookup for backward compatibility
-const TYPICAL_PROCESSING_MONTHS: Record<string, number> = {
-  ...PROCESSING_STEP_MONTHS,
-  ...STATUS_VISA_VALIDITY_MONTHS,
-};
+// Use centralized constants from lib/constants.ts
+// PROCESSING_STEP_TIMES, STATUS_VISA_* are imported above
 
 // Convert a date to "years from today" (negative = past, positive = future)
 function dateToYearsFromNow(date: Date): number {
@@ -290,7 +256,7 @@ function adjustStagesForProgress(
       const approvedDate = parseDate(sp.approvedDate);
       if (approvedDate) {
         const endYear = dateToYearsFromNow(approvedDate);
-        const typicalMonths = PROCESSING_STEP_MONTHS[stage.nodeId] || 6;
+        const typicalMonths = getTypicalProcessingMonths(stage.nodeId);
         adjustedStart = endYear - (typicalMonths / 12);
         
         if (!stage.isConcurrent) {
@@ -304,7 +270,7 @@ function adjustStagesForProgress(
       if (filedDate) {
         adjustedStart = dateToYearsFromNow(filedDate);
         
-        const typicalMonths = PROCESSING_STEP_MONTHS[stage.nodeId] || (stage.durationYears.max * 12);
+        const typicalMonths = PROCESSING_STEP_TIMES[stage.nodeId]?.typical || (stage.durationYears.max * 12);
         const elapsedMonths = monthsBetween(filedDate, now);
         const remainingMonths = Math.max(1, typicalMonths - elapsedMonths);
         const totalMonths = elapsedMonths + remainingMonths;
