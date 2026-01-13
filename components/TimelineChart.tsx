@@ -154,6 +154,15 @@ function adjustStagesForProgress(
     status: 0,
     gc: 0,
   };
+  
+  // Track whether any stage on each track has progress
+  // This determines whether NOT_STARTED stages should:
+  // - Chain from progress (if track has progress)
+  // - Preserve original composed positions (if track has no progress)
+  const trackHasProgress: Record<string, boolean> = {
+    status: false,
+    gc: false,
+  };
 
   // First pass: calculate actual positions for stages with progress
   for (let i = 0; i < stages.length; i++) {
@@ -175,6 +184,7 @@ function adjustStagesForProgress(
     if (isStatusVisa && sp?.status === "approved" && sp.approvedDate) {
       // STATUS VISA APPROVED: Visa validity STARTS at approved date
       // The bar shows the validity period, not the processing time
+      trackHasProgress[track] = true;
       const approvedDate = parseDate(sp.approvedDate);
       
       if (approvedDate) {
@@ -199,6 +209,7 @@ function adjustStagesForProgress(
       }
     } else if (isStatusVisa && sp?.status === "filed" && sp.filedDate) {
       // STATUS VISA FILED: Show processing time + upcoming validity
+      trackHasProgress[track] = true;
       const filedDate = parseDate(sp.filedDate);
       
       if (filedDate) {
@@ -227,6 +238,7 @@ function adjustStagesForProgress(
       }
     } else if (sp?.status === "approved" && sp.filedDate && sp.approvedDate) {
       // PROCESSING STEP APPROVED with dates: use actual duration (filed → approved)
+      trackHasProgress[track] = true;
       const filedDate = parseDate(sp.filedDate);
       const approvedDate = parseDate(sp.approvedDate);
       
@@ -251,6 +263,7 @@ function adjustStagesForProgress(
       }
     } else if (sp?.status === "approved" && sp.approvedDate) {
       // PROCESSING STEP APPROVED but no filed date - estimate backwards
+      trackHasProgress[track] = true;
       const approvedDate = parseDate(sp.approvedDate);
       if (approvedDate) {
         const endYear = dateToYearsFromNow(approvedDate);
@@ -265,6 +278,7 @@ function adjustStagesForProgress(
     } else if (sp?.status === "filed" && sp.filedDate) {
       // PROCESSING STEP FILED: show elapsed + estimated remaining
       // Use the PATH's duration for consistency with timeline display
+      trackHasProgress[track] = true;
       const filedDate = parseDate(sp.filedDate);
       
       if (filedDate) {
@@ -305,10 +319,22 @@ function adjustStagesForProgress(
         }
       } else {
         // Sequential stage: starts after current track end, but not before today
-        // CRITICAL: Also preserve original startYear from path composition
-        // This is important for paths without progress (e.g., Student → NIW where
-        // gcStartYear is set to after degree completion)
-        adjustedStart = Math.max(stage.startYear, trackEndYears[track], 0);
+        // 
+        // KEY INSIGHT: The behavior depends on whether there's progress on this track:
+        // - If there IS progress on this track: chain from trackEndYears (timeline shifted)
+        // - If there's NO progress on this track: preserve original startYear (e.g., Student → NIW)
+        //
+        // This is important for paths like Student → NIW shown alongside TN → EB-3:
+        // - TN → EB-3 has PWD filed (gc track has progress) → Recruit chains from PWD end
+        // - Student → NIW has no progress on gc track → NIW stays at year 2 (after degree)
+        if (trackHasProgress[track]) {
+          // Track has progress - chain from where previous stages end
+          adjustedStart = Math.max(0, trackEndYears[track]);
+        } else {
+          // Track has NO progress - preserve original composed position
+          // This ensures Student → NIW shows NIW at year 2, not year 0
+          adjustedStart = Math.max(0, stage.startYear);
+        }
       }
       
       // Update track end time for ALL stages (including concurrent)
