@@ -93,6 +93,233 @@ function getFiledProgress(filedDate: string | undefined, durationMonths: number)
   return Math.min(100, Math.max(0, (elapsed / durationMonths) * 100));
 }
 
+// Typical processing times in months (for estimation when no actual data)
+const TYPICAL_PROCESSING_MONTHS: Record<string, number> = {
+  pwd: 7,
+  recruit: 2.5,
+  perm: 15,
+  i140: 9,
+  i485: 12,
+  eb1a: 9,
+  eb1b: 9,
+  eb1c: 9,
+  eb2niw: 12,
+  h1b: 24,
+  tn: 36,
+  opt: 24,
+  f1: 24,
+  l1a: 18,
+  l1b: 36,
+  o1: 24,
+};
+
+// Convert a date to "years from today" (negative = past, positive = future)
+function dateToYearsFromNow(date: Date): number {
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  return diffMs / (1000 * 60 * 60 * 24 * 365.25);
+}
+
+// Calculate visible position for a stage (handles stages that start in the past)
+// Returns: { left, width, isFullyPast, visiblePortion }
+function getVisibleStagePosition(
+  startYear: number,
+  durationYears: number,
+  pixelsPerYear: number
+): { left: number; width: number; isFullyPast: boolean; visiblePortion: number } {
+  const endYear = startYear + durationYears;
+  
+  // Stage is fully in the past
+  if (endYear <= 0) {
+    return {
+      left: 0,
+      width: Math.max(24, durationYears * pixelsPerYear * 0.5), // Compressed width
+      isFullyPast: true,
+      visiblePortion: 0,
+    };
+  }
+  
+  // Stage started in the past but extends into the future
+  if (startYear < 0) {
+    const visibleDuration = endYear; // Only the future portion
+    return {
+      left: 0,
+      width: Math.max(24, visibleDuration * pixelsPerYear - 2),
+      isFullyPast: false,
+      visiblePortion: visibleDuration / durationYears,
+    };
+  }
+  
+  // Stage is entirely in the future
+  return {
+    left: startYear * pixelsPerYear,
+    width: Math.max(24, durationYears * pixelsPerYear - 2),
+    isFullyPast: false,
+    visiblePortion: 1,
+  };
+}
+
+// Adjust stage positions based on actual progress data
+// This recalculates startYear and duration for each stage based on:
+// - Approved stages: actual duration from filed→approved dates
+// - Filed stages: start at filed date, estimate remaining time
+// - Not started: chain from previous stage's actual/estimated end
+function adjustStagesForProgress(
+  stages: ComposedStage[],
+  progress: GlobalProgress | null | undefined
+): ComposedStage[] {
+  if (!progress || Object.keys(progress.stages).length === 0) {
+    // No progress data - return original stages
+    return stages;
+  }
+
+  const now = new Date();
+  const adjustedStages: ComposedStage[] = [];
+  
+  // Track the end time of each track separately
+  // This is important because status track and gc track run in parallel
+  const trackEndYears: Record<string, number> = {
+    status: 0,
+    gc: 0,
+  };
+
+  // First pass: calculate actual positions for stages with progress
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    const sp = progress.stages[stage.nodeId];
+    const track = stage.track || "gc";
+    
+    // Skip PD wait stages and GC marker for now - handle them after
+    if (stage.isPriorityWait || stage.nodeId === "gc") {
+      adjustedStages.push(stage);
+      continue;
+    }
+
+    let adjustedStart = stage.startYear;
+    let adjustedDuration = stage.durationYears;
+
+    if (sp?.status === "approved" && sp.filedDate && sp.approvedDate) {
+      // APPROVED with dates: use actual duration
+      const filedDate = parseDate(sp.filedDate);
+      const approvedDate = parseDate(sp.approvedDate);
+      
+      if (filedDate && approvedDate) {
+        // Calculate actual duration in years
+        const actualMonths = monthsBetween(filedDate, approvedDate);
+        const actualYears = Math.max(0.1, actualMonths / 12); // Min 0.1 for visibility
+        
+        // Start position is when it was filed (relative to now)
+        adjustedStart = dateToYearsFromNow(filedDate);
+        
+        adjustedDuration = {
+          min: actualYears,
+          max: actualYears,
+          display: actualMonths < 12 
+            ? `${Math.round(actualMonths)} mo` 
+            : `${actualYears.toFixed(1)} yr`,
+        };
+        
+        // Update track end time
+        const endYear = dateToYearsFromNow(approvedDate);
+        if (!stage.isConcurrent) {
+          trackEndYears[track] = Math.max(trackEndYears[track], endYear);
+        }
+      }
+    } else if (sp?.status === "approved" && sp.approvedDate) {
+      // Approved but no filed date - use approval date as end
+      const approvedDate = parseDate(sp.approvedDate);
+      if (approvedDate) {
+        const endYear = dateToYearsFromNow(approvedDate);
+        // Estimate start as approval minus typical duration
+        const typicalMonths = TYPICAL_PROCESSING_MONTHS[stage.nodeId] || 6;
+        adjustedStart = endYear - (typicalMonths / 12);
+        
+        if (!stage.isConcurrent) {
+          trackEndYears[track] = Math.max(trackEndYears[track], endYear);
+        }
+      }
+    } else if (sp?.status === "filed" && sp.filedDate) {
+      // FILED: use filed date as start, estimate end
+      const filedDate = parseDate(sp.filedDate);
+      
+      if (filedDate) {
+        adjustedStart = dateToYearsFromNow(filedDate);
+        
+        // Use typical processing time for remaining duration estimation
+        const typicalMonths = TYPICAL_PROCESSING_MONTHS[stage.nodeId] || (stage.durationYears.max * 12);
+        const elapsedMonths = monthsBetween(filedDate, now);
+        const remainingMonths = Math.max(1, typicalMonths - elapsedMonths);
+        const totalMonths = elapsedMonths + remainingMonths;
+        const totalYears = totalMonths / 12;
+        
+        adjustedDuration = {
+          min: totalYears * 0.8,
+          max: totalYears,
+          display: totalMonths < 12 
+            ? `${Math.round(totalMonths)} mo`
+            : `${totalYears.toFixed(1)} yr`,
+        };
+        
+        // Estimated end
+        const estimatedEndYear = adjustedStart + totalYears;
+        if (!stage.isConcurrent) {
+          trackEndYears[track] = Math.max(trackEndYears[track], estimatedEndYear);
+        }
+      }
+    } else {
+      // NOT STARTED: position based on when previous stage ends
+      // Use the track's current end position
+      if (!stage.isConcurrent) {
+        adjustedStart = Math.max(0, trackEndYears[track]);
+      } else {
+        // Concurrent stages start at the same time as the last non-concurrent stage on this track
+        // Keep original relative position
+      }
+      
+      // Update track end time
+      const endYear = adjustedStart + stage.durationYears.max;
+      if (!stage.isConcurrent) {
+        trackEndYears[track] = Math.max(trackEndYears[track], endYear);
+      }
+    }
+
+    adjustedStages.push({
+      ...stage,
+      startYear: adjustedStart,
+      durationYears: adjustedDuration,
+    });
+  }
+
+  // Second pass: adjust PD wait and GC marker based on surrounding stages
+  // Find the I-485 or last GC stage to position relative to
+  return adjustedStages.map((stage, idx) => {
+    if (stage.isPriorityWait) {
+      // Position PD wait after the previous stage on GC track
+      const prevGcStages = adjustedStages.slice(0, idx).filter(s => s.track === "gc" && !s.isPriorityWait);
+      if (prevGcStages.length > 0) {
+        const lastGcStage = prevGcStages[prevGcStages.length - 1];
+        const newStart = lastGcStage.startYear + lastGcStage.durationYears.max;
+        return { ...stage, startYear: Math.max(0, newStart) };
+      }
+    }
+    
+    if (stage.nodeId === "gc") {
+      // Position GC marker at the end of the last GC track stage
+      const gcStages = adjustedStages.filter(s => s.track === "gc" && s.nodeId !== "gc");
+      if (gcStages.length > 0) {
+        let maxEnd = 0;
+        for (const s of gcStages) {
+          const end = s.startYear + s.durationYears.max;
+          maxEnd = Math.max(maxEnd, end);
+        }
+        return { ...stage, startYear: Math.max(0, maxEnd) };
+      }
+    }
+    
+    return stage;
+  });
+}
+
 
 export default function TimelineChart({
   onStageClick,
@@ -241,7 +468,7 @@ export default function TimelineChart({
               className="text-xs text-gray-500 font-medium"
               style={{ width: PIXELS_PER_YEAR, flexShrink: 0 }}
             >
-              {year === 0 ? "Start" : `Year ${year}`}
+              {year === 0 ? "Today" : `Year ${year}`}
             </div>
           ))}
         </div>
@@ -260,6 +487,18 @@ export default function TimelineChart({
               />
             ))}
           </div>
+          
+          {/* Today marker - vertical line at position 0 */}
+          {selectedPathId && (
+            <div 
+              className="absolute top-0 bottom-0 w-0.5 bg-brand-500 z-20 pointer-events-none"
+              style={{ left: 0 }}
+            >
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-brand-500 text-white text-[9px] font-bold rounded whitespace-nowrap">
+                NOW
+              </div>
+            </div>
+          )}
 
           {/* Path lanes */}
           <div className="relative py-4">
@@ -363,14 +602,19 @@ export default function TimelineChart({
 
                   {/* Find current stage index (first non-approved stage) for tracked path */}
                   {(() => {
+                    // Adjust stage positions based on actual progress (for tracked path)
+                    const adjustedStages = isTracked 
+                      ? adjustStagesForProgress(path.stages, globalProgress)
+                      : path.stages;
+                    
                     // Calculate current stage for this path if it's being tracked
-                    const currentStageIdx = isTracked ? path.stages.findIndex(s => {
+                    const currentStageIdx = isTracked ? adjustedStages.findIndex(s => {
                       if (s.isPriorityWait || s.nodeId === "gc") return false;
                       const sp = getStageProgress(path.id, s.nodeId);
                       return !sp || sp.status !== "approved";
                     }) : -1;
                     
-                    return path.stages.map((stage, idx) => {
+                    return adjustedStages.map((stage, idx) => {
                     const stageProgress = getStageProgress(path.id, stage.nodeId);
                     const isApproved = stageProgress?.status === "approved";
                     const isFiled = stageProgress?.status === "filed";
@@ -379,18 +623,18 @@ export default function TimelineChart({
                     
                     // Special rendering for priority date wait stages
                     if (stage.isPriorityWait) {
-                      const startYear = stage.startYear;
-                      const duration = stage.durationYears.max || 0.5;
-                      const left = startYear * PIXELS_PER_YEAR;
-                      const naturalWidth = duration * PIXELS_PER_YEAR - 2;
-                      const width = Math.max(naturalWidth, 60);
+                      const pdStartYear = stage.startYear;
+                      const pdDuration = stage.durationYears.max || 0.5;
+                      const pdVisiblePos = getVisibleStagePosition(pdStartYear, pdDuration, PIXELS_PER_YEAR);
+                      const pdLeft = pdVisiblePos.left;
+                      const pdWidth = Math.max(pdVisiblePos.width, 60);
                       const isHovered = hoveredStage === `${path.id}-${idx}`;
 
                       // Calculate top position (GC track)
-                      let top = multiTrack ? TRACK_HEIGHT + TRACK_GAP : 0;
+                      let pdTop = multiTrack ? TRACK_HEIGHT + TRACK_GAP : 0;
 
                       // Color based on wait length (or gray if completed)
-                      const waitYears = duration;
+                      const waitYears = pdDuration;
                       let bgColor = isApproved ? "bg-gray-400" : "bg-orange-500";
                       let borderColor = isApproved ? "border-gray-500" : "border-orange-600";
                       if (!isApproved) {
@@ -411,10 +655,10 @@ export default function TimelineChart({
                             ${isHovered ? "ring-2 ring-offset-2 ring-orange-400 scale-[1.03] z-30 shadow-lg" : "z-10 hover:shadow-md hover:scale-[1.01]"}
                           `}
                           style={{
-                            left: `${left}px`,
-                            width: `${width}px`,
+                            left: `${pdLeft}px`,
+                            width: `${pdWidth}px`,
                             height: TRACK_HEIGHT,
-                            top: `${top}px`,
+                            top: `${pdTop}px`,
                           }}
                           onClick={() => handleStageClick(stage.nodeId, path)}
                           onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
@@ -503,11 +747,10 @@ export default function TimelineChart({
                     const duration = stage.durationYears.max || 0.5;
                     const track = stage.track;
 
-                    const left = startYear * PIXELS_PER_YEAR;
-                    // No minimum width - use actual duration
-                    const naturalWidth = duration * PIXELS_PER_YEAR - 2;
-                    const width = Math.max(naturalWidth, 24); // Just enough for a small marker
-                    const isCompact = naturalWidth < 50; // Compact mode for small stages
+                    // Calculate visible position (handles stages that started in the past)
+                    const visiblePos = getVisibleStagePosition(startYear, duration, PIXELS_PER_YEAR);
+                    const { left, width, isFullyPast } = visiblePos;
+                    const isCompact = width < 50; // Compact mode for small stages
 
                     // Calculate vertical position based on track
                     let top = 0;
@@ -539,6 +782,7 @@ export default function TimelineChart({
 
                     // Special rendering for the final Green Card destination
                     if (isFinalGC) {
+                      const gcLeft = Math.max(0, startYear * PIXELS_PER_YEAR);
                       return (
                         <div
                           key={`${stage.nodeId}-${idx}`}
@@ -546,7 +790,7 @@ export default function TimelineChart({
                             ${isHovered ? "scale-105 z-30" : "z-10 hover:scale-[1.02]"}
                           `}
                           style={{
-                            left: `${left}px`,
+                            left: `${gcLeft}px`,
                             top: `${top}px`,
                           }}
                           onClick={() => handleStageClick(stage.nodeId, path)}
