@@ -5,7 +5,7 @@ import visaData from "@/data/visa-paths.json";
 import { FilterState, statusToNodeId } from "@/lib/filter-paths";
 import { generatePaths, ComposedStage, ComposedPath, setProcessingTimes } from "@/lib/path-composer";
 import { adaptDynamicData } from "@/lib/processing-times";
-import { DynamicData } from "@/lib/dynamic-data";
+import { DynamicData, DEFAULT_PRIORITY_DATES, DEFAULT_DATES_FOR_FILING } from "@/lib/dynamic-data";
 import { trackStageClick, trackPathsGenerated } from "@/lib/analytics";
 import { GlobalProgress, StageProgress } from "@/app/page";
 import { 
@@ -350,34 +350,63 @@ function adjustStagesForProgress(
     });
   }
 
-  // Second pass: adjust PD wait and GC marker based on surrounding stages
-  // Find the I-485 or last GC stage to position relative to
-  return adjustedStages.map((stage, idx) => {
+  // Second pass: adjust PD wait, I-485, and GC marker based on surrounding stages
+  // We use a loop instead of map so that when processing I-485, we can see
+  // PD wait's already-updated position (critical for correct sequencing)
+  const finalStages: ComposedStage[] = [];
+  
+  for (let idx = 0; idx < adjustedStages.length; idx++) {
+    const stage = adjustedStages[idx];
+    
     if (stage.isPriorityWait) {
-      // Position PD wait after the previous stage on GC track
-      const prevGcStages = adjustedStages.slice(0, idx).filter(s => s.track === "gc" && !s.isPriorityWait);
+      // Position PD wait after the previous non-PD-wait stage on GC track
+      const prevGcStages = finalStages.filter(s => s.track === "gc" && !s.isPriorityWait);
       if (prevGcStages.length > 0) {
         const lastGcStage = prevGcStages[prevGcStages.length - 1];
         const newStart = lastGcStage.startYear + lastGcStage.durationYears.max;
-        return { ...stage, startYear: Math.max(0, newStart) };
+        finalStages.push({ ...stage, startYear: Math.max(0, newStart) });
+      } else {
+        finalStages.push(stage);
       }
+      continue;
+    }
+    
+    if (stage.nodeId === "i485") {
+      // I-485 must come AFTER any PD wait stage
+      // This fixes the overlap bug where both I-485 and PD wait were positioned
+      // at trackEndYears[gc] (after I-140) when there's progress on the GC track
+      const pdWaitStage = finalStages.find(s => s.isPriorityWait);
+      if (pdWaitStage) {
+        // Position I-485 after PD wait ends
+        const pdWaitEnd = pdWaitStage.startYear + pdWaitStage.durationYears.max;
+        finalStages.push({ ...stage, startYear: Math.max(0, pdWaitEnd), isConcurrent: false });
+      } else {
+        finalStages.push(stage);
+      }
+      continue;
     }
     
     if (stage.nodeId === "gc") {
       // Position GC marker at the end of the last GC track stage
-      const gcStages = adjustedStages.filter(s => s.track === "gc" && s.nodeId !== "gc");
+      const gcStages = finalStages.filter(s => s.track === "gc" && s.nodeId !== "gc");
       if (gcStages.length > 0) {
         let maxEnd = 0;
         for (const s of gcStages) {
           const end = s.startYear + s.durationYears.max;
           maxEnd = Math.max(maxEnd, end);
         }
-        return { ...stage, startYear: Math.max(0, maxEnd) };
+        finalStages.push({ ...stage, startYear: Math.max(0, maxEnd) });
+      } else {
+        finalStages.push(stage);
       }
+      continue;
     }
     
-    return stage;
-  });
+    // All other stages: keep as-is from first pass
+    finalStages.push(stage);
+  }
+  
+  return finalStages;
 }
 
 
@@ -393,8 +422,10 @@ export default function TimelineChart({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
-  const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"] | undefined>(undefined);
-  const [datesForFiling, setDatesForFiling] = useState<DynamicData["datesForFiling"] | undefined>(undefined);
+  // Initialize with defaults to prevent timeline flicker when API data loads
+  // The defaults match what the API would return, so PD Wait stages render correctly from the start
+  const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"]>(DEFAULT_PRIORITY_DATES);
+  const [datesForFiling, setDatesForFiling] = useState<DynamicData["datesForFiling"]>(DEFAULT_DATES_FOR_FILING);
 
   // Helper to get stage progress (now global - same stage data for all paths)
   const getStageProgress = (pathId: string, nodeId: string): StageProgress | null => {

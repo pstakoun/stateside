@@ -1,6 +1,6 @@
 import { FilterState, CurrentStatus, Education, Experience, isTNEligible, priorityDateToString, needsPerm } from "./filter-paths";
 import visaData from "@/data/visa-paths.json";
-import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait, calculateWaitForExistingPD, calculateWaitForExistingPDWithVelocity, WaitCalculationResult, getVelocityForCategory, calculateNewFilerWait } from "./processing-times";
+import { ProcessingTimes, DEFAULT_PROCESSING_TIMES, formatMonths, calculateMonthsFromDate, calculatePriorityDateWait, getPriorityDateForPath, formatPriorityWait, calculateWaitForExistingPD, calculateWaitForExistingPDWithVelocity, WaitCalculationResult, getVelocityForCategory, calculateNewFilerWait } from "./processing-times";
 import { EBCategory } from "./filter-paths";
 import { DynamicData } from "./dynamic-data";
 
@@ -18,13 +18,18 @@ export function getProcessingTimes(): ProcessingTimes {
 }
 
 // Get dynamic duration for a specific stage based on current processing times
+// IMPORTANT: We calculate months from the "currentlyProcessing" date string
+// rather than using pre-computed estimatedMonths. This ensures consistency
+// between initial render (with defaults) and after API fetch (with live data),
+// preventing visual jumps in the timeline.
 function getDynamicDuration(nodeId: string): Duration | null {
   const times = currentProcessingTimes;
 
   switch (nodeId) {
     case "pwd":
-      // PWD: use DOL data
-      const pwdMonths = times.dol.pwd.estimatedMonths;
+      // PWD: calculate months from the "currently processing" date
+      // This avoids inconsistency between hardcoded defaults and live-calculated values
+      const pwdMonths = calculateMonthsFromDate(times.dol.pwd.currentlyProcessing);
       return {
         min: pwdMonths * 0.8 / 12,
         max: (pwdMonths + 1) / 12,
@@ -32,8 +37,9 @@ function getDynamicDuration(nodeId: string): Duration | null {
       };
 
     case "perm":
-      // PERM: use DOL analyst review data
-      const permMonths = times.dol.perm.analystReview.estimatedMonths;
+      // PERM: calculate months from the "currently processing" date
+      // This ensures the display matches regardless of data source (defaults vs live)
+      const permMonths = calculateMonthsFromDate(times.dol.perm.analystReview.currentlyProcessing);
       return {
         min: Math.max(permMonths - 2, 6) / 12,
         max: (permMonths + 2) / 12,
