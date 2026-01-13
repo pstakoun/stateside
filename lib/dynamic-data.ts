@@ -134,10 +134,13 @@ async function fetchDOLData(): Promise<{
     };
   } catch (error) {
     console.error("DOL fetch error:", error);
+    // Fallback values must match DEFAULT_PROCESSING_TIMES in processing-times.ts
+    // to avoid visual jumps when fetch fails after initial render
+    // Note: months field is legacy - we now calculate from currentlyProcessing dates
     return {
       pwd: { months: 6, currentlyProcessing: "July 2025" },
       perm: { months: 17, currentlyProcessing: "August 2024" },
-      permAudit: { months: 13, currentlyProcessing: "December 2024" },
+      permAudit: { months: 22, currentlyProcessing: "March 2024" },
     };
   }
 }
