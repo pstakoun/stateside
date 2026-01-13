@@ -406,48 +406,95 @@ export default function TrackerPanel({
     return currentPathPD;
   }, [progress.portedPriorityDate, currentPathPD]);
 
-  // Calculate estimated completion date based on GC track stages only
-  // Work visa stages (status track) run in PARALLEL, so don't count them
+  // Calculate estimated completion by summing remaining time for each stage
+  // Handles concurrent stages by not double-counting overlapping time
   const estimatedCompletion = useMemo(() => {
     const now = new Date();
     
-    // Only count GC track stages (green card process) - not work visa stages
-    // Work visas (TN, H-1B, etc.) run in parallel and don't affect GC timeline
+    // Get GC track stages (not work visas, not the final GC marker)
     const gcStages = path.stages.filter(s => s.track === "gc" && s.nodeId !== "gc");
     
+    if (gcStages.length === 0) {
+      return { date: now, months: 0, hasUncertainty: false };
+    }
+    
+    // Calculate estimated duration (slightly optimistic: 40% between min and max)
+    const getEstimatedDuration = (stage: ComposedStage) => {
+      const min = stage.durationYears?.min || 0;
+      const max = stage.durationYears?.max || 0;
+      return min + (max - min) * 0.4;
+    };
+    
+    // Sum up remaining months, but handle concurrent stages
     let remainingMonths = 0;
     let hasUncertainty = false;
-
-    for (const stage of gcStages) {
+    let lastStageEnd = 0; // Track where the last non-concurrent stage ends
+    
+    for (let i = 0; i < gcStages.length; i++) {
+      const stage = gcStages[i];
       const sp = progress.stages[stage.nodeId] || { status: "not_started" };
-      const stageDurationMonths = (stage.durationYears?.max || 0) * 12;
+      const estimatedDuration = getEstimatedDuration(stage);
+      const durationMonths = estimatedDuration * 12;
       
+      // Handle PD wait stages
       if (stage.isPriorityWait) {
-        // PD wait - check if it's been "completed" (date is current)
         if (sp.status !== "approved") {
-          remainingMonths += stageDurationMonths;
+          remainingMonths += durationMonths;
           hasUncertainty = true;
         }
         continue;
       }
       
+      // For concurrent stages, don't add to remaining unless longer than previous
+      const isConcurrent = stage.isConcurrent && i > 0;
+      
       if (sp.status === "approved") {
-        // Fully completed - add nothing
+        // Stage complete - update position
+        if (!isConcurrent) {
+          lastStageEnd += durationMonths;
+        } else {
+          lastStageEnd = Math.max(lastStageEnd, durationMonths);
+        }
         continue;
-      } else if (sp.status === "filed" && sp.filedDate) {
-        // In progress - calculate remaining time
+      }
+      
+      // Calculate remaining for this stage
+      let stageRemaining = durationMonths;
+      
+      if (sp.status === "filed" && sp.filedDate) {
         const filedDate = parseDate(sp.filedDate);
         if (filedDate) {
-          const elapsed = monthsBetween(filedDate, now);
-          const remaining = Math.max(0, stageDurationMonths - elapsed);
-          remainingMonths += remaining;
-        } else {
-          // No filed date, assume full duration
-          remainingMonths += stageDurationMonths;
+          const elapsedMonths = monthsBetween(filedDate, now);
+          stageRemaining = Math.max(0, durationMonths - elapsedMonths);
         }
+      }
+      
+      // Add to remaining (but for concurrent, only add the difference)
+      if (!isConcurrent) {
+        remainingMonths += stageRemaining;
       } else {
-        // Not started - add full duration
-        remainingMonths += stageDurationMonths;
+        // For concurrent stage, it overlaps with what we just added
+        // Only add extra time if this concurrent stage takes longer
+        const prevStage = gcStages[i - 1];
+        const prevRemaining = sp.status === "filed" ? stageRemaining : durationMonths;
+        const prevDuration = getEstimatedDuration(prevStage) * 12;
+        const prevSp = progress.stages[prevStage.nodeId] || { status: "not_started" };
+        
+        let prevStageRemaining = prevDuration;
+        if (prevSp.status === "approved") {
+          prevStageRemaining = 0;
+        } else if (prevSp.status === "filed" && prevSp.filedDate) {
+          const filedDate = parseDate(prevSp.filedDate);
+          if (filedDate) {
+            const elapsedMonths = monthsBetween(filedDate, now);
+            prevStageRemaining = Math.max(0, prevDuration - elapsedMonths);
+          }
+        }
+        
+        // Only add the extra time beyond the previous stage
+        if (stageRemaining > prevStageRemaining) {
+          remainingMonths += (stageRemaining - prevStageRemaining);
+        }
       }
     }
 
