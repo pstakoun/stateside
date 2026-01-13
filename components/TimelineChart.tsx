@@ -305,7 +305,10 @@ function adjustStagesForProgress(
         }
       } else {
         // Sequential stage: starts after current track end, but not before today
-        adjustedStart = Math.max(0, trackEndYears[track]);
+        // CRITICAL: Also preserve original startYear from path composition
+        // This is important for paths without progress (e.g., Student → NIW where
+        // gcStartYear is set to after degree completion)
+        adjustedStart = Math.max(stage.startYear, trackEndYears[track], 0);
       }
       
       // Update track end time for ALL stages (including concurrent)
