@@ -426,13 +426,29 @@ export default function TrackerPanel({
     // Only count GC track stages (not status track like TN/H-1B)
     const gcStages = path.stages.filter(s => s.track === "gc" && s.nodeId !== "gc" && !s.isPriorityWait);
     
+    // Check if there's any progress on GC track stages
+    // This determines whether we use original startYear or chain from progress
+    const hasGcProgress = gcStages.some(s => {
+      const sp = progress.stages[s.nodeId];
+      return sp && (sp.status === "filed" || sp.status === "approved");
+    });
+    
+    // Find earliest GC stage startYear from path composition
+    // This is when the GC process can BEGIN (e.g., year 2 for Student → NIW)
+    const earliestGcStartYear = gcStages.length > 0 
+      ? Math.min(...gcStages.map(s => s.startYear || 0))
+      : 0;
+    
     // Track time like path-composer does:
-    // - gcSequentialYear: when the next sequential stage starts
-    // - gcMaxEndYear: the latest end time across all stages
+    // - gcSequentialMonths: when the next sequential stage starts
+    // - gcMaxEndMonths: the latest end time across all stages
     // Concurrent stages start at the SAME time as the PREVIOUS stage
-    let gcSequentialMonths = 0;
-    let gcMaxEndMonths = 0;
-    let prevStageStartMonths = 0;
+    //
+    // KEY: If there's NO progress on GC track, use the original startYear to account
+    // for paths where GC can't start until status stages complete (e.g., Student → NIW)
+    let gcSequentialMonths = hasGcProgress ? 0 : earliestGcStartYear * 12;
+    let gcMaxEndMonths = hasGcProgress ? 0 : earliestGcStartYear * 12;
+    let prevStageStartMonths = hasGcProgress ? 0 : earliestGcStartYear * 12;
     
     for (let i = 0; i < gcStages.length; i++) {
       const stage = gcStages[i];
