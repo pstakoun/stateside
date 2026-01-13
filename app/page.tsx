@@ -143,15 +143,16 @@ export default function Home() {
 
   // Update selected path when paths are regenerated (e.g., after filter/PD change)
   const handlePathsGenerated = useCallback((paths: ComposedPath[]) => {
-    if (globalProgress?.selectedPathId && selectedPath) {
+    if (globalProgress?.selectedPathId) {
       // Find the updated version of the selected path
       const updatedPath = paths.find(p => p.id === globalProgress.selectedPathId);
-      if (updatedPath && updatedPath.totalYears !== selectedPath.totalYears) {
-        // Path's timeline changed - update it
+      if (updatedPath) {
+        // Always update to ensure we have the latest path data
+        // (totalYears may have changed due to filter/PD changes)
         setSelectedPath(updatedPath);
       }
     }
-  }, [globalProgress?.selectedPathId, selectedPath]);
+  }, [globalProgress?.selectedPathId]);
 
   const handleOnboardingComplete = (newFilters: FilterState) => {
     setFilters(newFilters);

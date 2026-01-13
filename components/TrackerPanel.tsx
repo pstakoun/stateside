@@ -411,11 +411,18 @@ export default function TrackerPanel({
   const estimatedCompletion = useMemo(() => {
     const now = new Date();
     
-    // Use the path's total timeline (average of min/max for realistic estimate)
+    // Check if path has PD wait (uncertain timeline)
+    const hasUncertainty = path.stages.some(s => s.isPriorityWait);
+    
+    // Use the path's total timeline
     const pathMinMonths = (path.totalYears?.min || 0) * 12;
     const pathMaxMonths = (path.totalYears?.max || 0) * 12;
-    // Use 40% between min and max for a realistic but slightly optimistic estimate
-    const pathEstimatedMonths = pathMinMonths + (pathMaxMonths - pathMinMonths) * 0.4;
+    
+    // For paths with PD wait, use a more conservative estimate (closer to max)
+    // For paths without PD wait, use average (50%)
+    // This better matches what users see on the visual timeline
+    const estimateFactor = hasUncertainty ? 0.7 : 0.5;
+    const pathEstimatedMonths = pathMinMonths + (pathMaxMonths - pathMinMonths) * estimateFactor;
     
     // Calculate time already completed based on progress
     let completedMonths = 0;
@@ -427,7 +434,7 @@ export default function TrackerPanel({
       const sp = progress.stages[stage.nodeId] || { status: "not_started" };
       const stageMinMonths = (stage.durationYears?.min || 0) * 12;
       const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
-      const stageEstMonths = stageMinMonths + (stageMaxMonths - stageMinMonths) * 0.4;
+      const stageEstMonths = stageMinMonths + (stageMaxMonths - stageMinMonths) * estimateFactor;
       
       if (sp.status === "approved") {
         // Fully completed - but for concurrent stages, don't double count
@@ -448,9 +455,6 @@ export default function TrackerPanel({
     
     // Remaining = total - completed
     const remainingMonths = Math.max(0, pathEstimatedMonths - completedMonths);
-    
-    // Check for uncertainty (PD wait stages exist)
-    const hasUncertainty = path.stages.some(s => s.isPriorityWait);
 
     // Calculate estimated date
     const estimatedDate = new Date(now);
