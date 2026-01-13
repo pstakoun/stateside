@@ -338,11 +338,11 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+      <header className="bg-gradient-to-r from-white via-white to-gray-50 border-b border-gray-100 px-6 py-3 flex-shrink-0 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {/* Logo */}
-            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/30">
               <svg
                 width="20"
                 height="20"
@@ -359,32 +359,34 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <span className="text-xl font-semibold text-gray-900 tracking-tight">
-              Stateside
-            </span>
-            <span className="text-sm text-gray-400 hidden sm:inline">
-              US immigration paths
-            </span>
+            <div>
+              <span className="text-xl font-bold text-gray-900 tracking-tight">
+                Stateside
+              </span>
+              <span className="text-xs text-gray-400 hidden sm:block -mt-0.5">
+                US immigration pathways
+              </span>
+            </div>
           </div>
 
           {/* Progress indicator - only show when tracking */}
           {globalProgress?.selectedPathId && selectedPath && (
             <div className="flex items-center gap-3 text-sm">
-              <div className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg">
-                <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                <span className="font-medium">{selectedPath.name}</span>
+              <div className="flex items-center gap-2.5 text-brand-700 bg-gradient-to-r from-brand-50 to-green-50 px-4 py-2 rounded-full shadow-sm border border-brand-100">
+                <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse shadow-sm" />
+                <span className="font-semibold">{selectedPath.name}</span>
                 {progressSummary && (
-                  <span className="text-brand-600">
-                    • {progressSummary.approved}/{progressSummary.total} complete
+                  <span className="text-brand-600 bg-white/60 px-2 py-0.5 rounded-full text-xs font-bold">
+                    {progressSummary.approved}/{progressSummary.total}
                   </span>
                 )}
               </div>
               <button
                 onClick={handleStopTracking}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-full transition-all duration-200"
                 title="Stop tracking"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>

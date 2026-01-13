@@ -85,12 +85,12 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
     filters.hasInvestmentCapital,
   ].filter(Boolean).length;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100">
+        <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-brand-50/50 to-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M5 12h14M12 5l7 7-7 7"
@@ -102,7 +102,7 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Welcome to Stateside</h1>
+              <h1 className="text-xl font-bold text-gray-900">Welcome to Stateside</h1>
               <p className="text-sm text-gray-500">Tell us about yourself to see your immigration paths</p>
             </div>
           </div>
@@ -379,15 +379,15 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
+          <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-t border-gray-100 rounded-b-2xl">
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.99]"
             >
-              Show my immigration paths
+              Show my immigration paths →
             </button>
-            <p className="text-xs text-gray-500 text-center mt-3">
-              You can track your progress on any path after exploring
+            <p className="text-[11px] text-gray-400 text-center mt-3">
+              🔒 Your data stays private • Track progress on any path
             </p>
           </div>
         </form>

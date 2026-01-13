@@ -153,17 +153,15 @@ function StageItem({
 
   const statusIcons = {
     not_started: (
-      <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 ${isCurrentStage ? "border-brand-500 bg-brand-50" : "border-gray-300"}`} />
+      <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 transition-all ${isCurrentStage ? "border-brand-500 bg-brand-50 shadow-sm shadow-brand-500/20" : "border-gray-300"}`} />
     ),
     filed: (
-      <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-          <circle cx="12" cy="12" r="4" fill="white" />
-        </svg>
+      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-500/30">
+        <div className="w-2 h-2 bg-white rounded-full" />
       </div>
     ),
     approved: (
-      <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-green-500/30">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
           <path d="M20 6L9 17l-5-5" />
         </svg>
@@ -174,12 +172,12 @@ function StageItem({
   return (
     <div 
       ref={stageRef}
-      className={`border-b border-gray-100 last:border-0 ${isExpanded ? "bg-brand-50/30" : ""} ${isCurrentStage && stageProgress.status === "not_started" ? "ring-2 ring-inset ring-brand-300" : ""}`}
+      className={`border-b border-gray-100 last:border-0 transition-all duration-200 ${isExpanded ? "bg-gradient-to-r from-brand-50/50 to-transparent" : ""} ${isCurrentStage && stageProgress.status === "not_started" ? "ring-2 ring-inset ring-brand-200 bg-brand-50/30" : ""}`}
       id={`stage-${stage.nodeId}`}
     >
       {/* Current stage indicator */}
       {isCurrentStage && stageProgress.status === "not_started" && (
-        <div className="bg-brand-500 text-white text-[10px] font-bold px-2 py-0.5 text-center">
+        <div className="bg-gradient-to-r from-brand-500 to-brand-600 text-white text-[10px] font-bold px-3 py-1 text-center tracking-wide">
           → NEXT STEP
         </div>
       )}
@@ -187,42 +185,42 @@ function StageItem({
       {/* Stage header - always visible */}
       <button
         onClick={onToggleExpand}
-        className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors ${
-          isExpanded ? "bg-gray-50" : ""
+        className={`w-full px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50/80 transition-all duration-200 ${
+          isExpanded ? "bg-gray-50/50" : ""
         }`}
       >
         {statusIcons[stageProgress.status]}
         
         <div className="flex-1 text-left min-w-0">
-          <div className="font-medium text-gray-900 text-sm">{nodeName}</div>
+          <div className="font-semibold text-gray-900 text-sm">{nodeName}</div>
           {stageProgress.status === "filed" && remainingTime && (
-            <div className="text-xs text-blue-600">
-              ~{formatMonthsRemaining(remainingTime.remaining)} remaining
+            <div className="text-xs text-blue-600 font-medium mt-0.5">
+              ⏳ ~{formatMonthsRemaining(remainingTime.remaining)} remaining
             </div>
           )}
           {stageProgress.status === "filed" && stageProgress.filedDate && !remainingTime && (
-            <div className="text-xs text-gray-500">
-              Filed {formatDateDisplay(stageProgress.filedDate)} ({timeElapsed(stageProgress.filedDate)})
+            <div className="text-xs text-gray-500 mt-0.5">
+              Filed {formatDateDisplay(stageProgress.filedDate)} • {timeElapsed(stageProgress.filedDate)}
             </div>
           )}
           {stageProgress.status === "approved" && stageProgress.approvedDate && (
-            <div className="text-xs text-green-600">
+            <div className="text-xs text-green-600 font-medium mt-0.5">
               ✓ Approved {formatDateDisplay(stageProgress.approvedDate)}
             </div>
           )}
           {stageProgress.receiptNumber && (
-            <div className="text-[10px] font-mono text-gray-500">{stageProgress.receiptNumber}</div>
+            <div className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-1">{stageProgress.receiptNumber}</div>
           )}
         </div>
 
         <svg
-          width="16"
-          height="16"
+          width="18"
+          height="18"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className={`text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+          className={`text-gray-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -230,22 +228,26 @@ function StageItem({
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3 bg-gray-50">
+        <div className="px-5 pb-5 space-y-4 bg-gradient-to-b from-gray-50/80 to-white">
           {/* Status selector */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Status</label>
+            <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Status</label>
             <div className="flex gap-2">
               {(["not_started", "filed", "approved"] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => onUpdate({ status })}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  className={`px-4 py-2 text-xs font-semibold rounded-xl border-2 transition-all duration-200 ${
                     stageProgress.status === status
-                      ? statusColors[status]
-                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                      ? status === "not_started" 
+                        ? "bg-gray-100 text-gray-700 border-gray-300 shadow-sm"
+                        : status === "filed"
+                        ? "bg-blue-50 text-blue-700 border-blue-300 shadow-sm shadow-blue-500/20"
+                        : "bg-green-50 text-green-700 border-green-300 shadow-sm shadow-green-500/20"
+                      : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                   }`}
                 >
-                  {status === "not_started" ? "Not Started" : status === "filed" ? "Filed" : "Approved"}
+                  {status === "not_started" ? "Not Started" : status === "filed" ? "📋 Filed" : "✓ Approved"}
                 </button>
               ))}
             </div>
@@ -254,16 +256,16 @@ function StageItem({
           {/* Filed date */}
           {(stageProgress.status === "filed" || stageProgress.status === "approved") && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Filed Date</label>
+              <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Filed Date</label>
               <input
                 type="date"
                 value={stageProgress.filedDate || ""}
                 onChange={(e) => onUpdate({ filedDate: e.target.value || undefined })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
               />
               {remainingTime && stageProgress.status === "filed" && (
-                <p className="text-[10px] text-blue-600 mt-1">
-                  {Math.round(remainingTime.elapsed)} months elapsed • typical: {remainingTime.typical.min}-{remainingTime.typical.max} months
+                <p className="text-[11px] text-blue-600 mt-2 bg-blue-50 px-3 py-1.5 rounded-lg inline-block">
+                  ⏱️ {Math.round(remainingTime.elapsed)} months elapsed • typical: {remainingTime.typical.min}-{remainingTime.typical.max} months
                 </p>
               )}
             </div>
@@ -272,12 +274,12 @@ function StageItem({
           {/* Approved date */}
           {stageProgress.status === "approved" && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Approved Date</label>
+              <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Approved Date</label>
               <input
                 type="date"
                 value={stageProgress.approvedDate || ""}
                 onChange={(e) => onUpdate({ approvedDate: e.target.value || undefined })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
               />
             </div>
           )}
@@ -285,34 +287,34 @@ function StageItem({
           {/* Receipt number */}
           {(stageProgress.status === "filed" || stageProgress.status === "approved") && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">
                 Receipt Number
-                <span className="text-gray-400 font-normal ml-1">(e.g., EAC2490012345)</span>
+                <span className="text-gray-400 font-normal ml-1 normal-case">(e.g., EAC2490012345)</span>
               </label>
               <input
                 type="text"
                 value={stageProgress.receiptNumber || ""}
                 onChange={(e) => onUpdate({ receiptNumber: e.target.value || undefined })}
                 placeholder="Enter receipt number"
-                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-4 py-2.5 text-sm font-mono border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
               />
             </div>
           )}
 
           {/* Priority date (for I-140, PERM, etc.) */}
           {canHavePriorityDate && stageProgress.status === "approved" && (
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Priority Date
-                <span className="text-gray-400 font-normal ml-1">(from approval notice)</span>
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+              <label className="block text-[10px] font-bold text-amber-700 mb-2 uppercase tracking-wider flex items-center gap-1">
+                <span>📅</span> Priority Date
+                <span className="text-amber-600 font-normal ml-1 normal-case">(from approval notice)</span>
               </label>
               <input
                 type="date"
                 value={stageProgress.priorityDate || ""}
                 onChange={(e) => onUpdate({ priorityDate: e.target.value || undefined })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-4 py-2.5 text-sm border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all bg-white"
               />
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-[11px] text-amber-700 mt-2 leading-relaxed">
                 This establishes when you entered the queue for a green card.
               </p>
             </div>
@@ -320,13 +322,13 @@ function StageItem({
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Notes</label>
+            <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider">Notes</label>
             <textarea
               value={stageProgress.notes || ""}
               onChange={(e) => onUpdate({ notes: e.target.value || undefined })}
               placeholder="Any additional notes..."
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+              className="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none transition-all"
             />
           </div>
         </div>
@@ -512,52 +514,61 @@ export default function TrackerPanel({
       />
       
       {/* Panel - fixed on mobile, side panel on desktop */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-[400px] bg-white border-l border-gray-200 flex flex-col overflow-hidden z-50 lg:relative lg:w-[380px] lg:z-auto shadow-xl lg:shadow-none">
+      <div className="fixed inset-y-0 right-0 w-full max-w-[420px] bg-white border-l border-gray-100 flex flex-col overflow-hidden z-50 lg:relative lg:w-[400px] lg:z-auto shadow-2xl lg:shadow-lg animate-slide-in-right">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 flex-shrink-0">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-white to-gray-50 flex-shrink-0">
         <div>
-          <h2 className="font-semibold text-gray-900">Track Progress</h2>
-          <p className="text-xs text-gray-500">{path.name}</p>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] text-brand-600 bg-brand-50 px-2 py-1 rounded-full font-semibold tracking-wide">
+              <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse" />
+              TRACKING
+            </span>
+          </div>
+          <h2 className="font-bold text-gray-900 text-lg mt-1">{path.name}</h2>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
 
       {/* Estimated Completion */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-brand-50 to-green-50 flex-shrink-0">
+      <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-brand-50 via-green-50 to-emerald-50 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Estimated Green Card</div>
-            <div className="text-lg font-bold text-gray-900">
+            <div className="text-[10px] font-bold text-brand-600 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🎯</span> Estimated Green Card
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">
               {estimatedCompletion.date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[10px] text-gray-500">Remaining</div>
-            <div className="text-sm font-semibold text-brand-700">
+          <div className="text-right bg-white/60 backdrop-blur-sm rounded-xl px-4 py-2 shadow-sm">
+            <div className="text-[10px] text-gray-500 font-medium">Time Remaining</div>
+            <div className="text-lg font-bold text-brand-700">
               {formatMonthsRemaining(estimatedCompletion.months)}
             </div>
           </div>
         </div>
         {estimatedCompletion.hasUncertainty && (
-          <p className="text-[10px] text-gray-500 mt-1">
-            ⚠️ Estimate includes uncertain factors like PD wait
+          <p className="text-[10px] text-amber-700 mt-2 bg-amber-50 px-2 py-1 rounded-lg inline-flex items-center gap-1">
+            <span>⚠️</span> Estimate includes uncertain factors like visa bulletin wait
           </p>
         )}
       </div>
 
       {/* Priority Date Section */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-amber-50/50 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Priority Date</h3>
+      <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50/70 to-orange-50/50 flex-shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📅</span> Priority Date
+          </h3>
           {effectivePD && (
-            <span className="text-xs text-amber-700 font-medium">
+            <span className="text-sm text-amber-800 font-bold bg-white/60 px-2 py-0.5 rounded-lg">
               {formatDateDisplay(effectivePD.date)}
             </span>
           )}
@@ -566,51 +577,54 @@ export default function TrackerPanel({
         {effectivePD ? (
           <>
             <div className="text-xs text-gray-600">
-              <span className="text-amber-800 font-medium">{effectivePD.source}</span>
-              <span className="text-gray-500 ml-1">({timeElapsed(effectivePD.date)})</span>
+              <span className="text-amber-800 font-semibold">{effectivePD.source}</span>
+              <span className="text-gray-500 ml-1.5">• {timeElapsed(effectivePD.date)}</span>
             </div>
             
             {/* PD Aging Benefit */}
             {pdAgingBenefit && (
-              <div className="mt-2 p-2 bg-green-100 border border-green-200 rounded text-xs">
-                <div className="font-medium text-green-800">📈 PD Aging Benefit</div>
-                <div className="text-green-700 mt-0.5">
+              <div className="mt-3 p-3 bg-gradient-to-r from-green-100 to-emerald-50 border border-green-200 rounded-xl text-xs shadow-sm">
+                <div className="font-bold text-green-800 flex items-center gap-1.5">
+                  <span>📈</span> PD Aging Benefit
+                </div>
+                <div className="text-green-700 mt-1 leading-relaxed">
                   Your PD will be <strong>{pdAgingBenefit.futureAge} months old</strong> by the time you file I-485
-                  (+{pdAgingBenefit.monthsGained} months closer to being current!)
+                  <span className="text-green-600 font-medium ml-1">(+{pdAgingBenefit.monthsGained} months closer!)</span>
                 </div>
               </div>
             )}
           </>
         ) : (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 bg-white/50 rounded-lg px-3 py-2">
             No priority date yet. Established when I-140 is approved.
           </p>
         )}
 
         {/* Ported PD input */}
-        <details className="mt-2">
-          <summary className="text-xs text-brand-600 cursor-pointer hover:text-brand-700">
+        <details className="mt-3">
+          <summary className="text-xs text-brand-600 cursor-pointer hover:text-brand-700 font-medium flex items-center gap-1">
+            <span>⚡</span>
             {progress.portedPriorityDate ? "Edit ported PD" : "Have a PD from a previous employer?"}
           </summary>
-          <div className="mt-2 p-3 bg-white rounded-lg border border-gray-200 space-y-2">
-            <p className="text-[10px] text-gray-500">
-              If you have an approved I-140 from a <strong>previous employer</strong>, you can port that priority date to your new case. You'll still need to complete PERM with your new employer, but your old PD will be used for the visa queue.
+          <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm space-y-3">
+            <p className="text-[11px] text-gray-600 leading-relaxed">
+              If you have an approved I-140 from a <strong>previous employer</strong>, you can port that priority date to your new case.
             </p>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Priority Date</label>
+              <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wide">Priority Date</label>
               <input
                 type="date"
                 value={progress.portedPriorityDate || ""}
                 onChange={(e) => onUpdatePortedPD(e.target.value || null, progress.portedPriorityDateCategory || null)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+              <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wide">Category</label>
               <select
                 value={progress.portedPriorityDateCategory || ""}
                 onChange={(e) => onUpdatePortedPD(progress.portedPriorityDate || null, e.target.value || null)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
               >
                 <option value="">Select category</option>
                 <option value="eb1">EB-1</option>
@@ -621,9 +635,9 @@ export default function TrackerPanel({
             {progress.portedPriorityDate && (
               <button
                 onClick={() => onUpdatePortedPD(null, null)}
-                className="text-xs text-red-600 hover:text-red-700"
+                className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1 mt-1"
               >
-                Remove ported PD
+                <span>×</span> Remove ported PD
               </button>
             )}
           </div>
@@ -631,19 +645,19 @@ export default function TrackerPanel({
       </div>
 
       {/* Summary bar */}
-      <div className="px-4 py-2 border-b border-gray-100 bg-white flex-shrink-0">
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-gray-600">{stageSummary.approved} done</span>
+      <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
+        <div className="flex items-center justify-around text-xs">
+          <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" />
+            <span className="text-green-700 font-semibold">{stageSummary.approved} done</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span className="text-gray-600">{stageSummary.filed} pending</span>
+          <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm" />
+            <span className="text-blue-700 font-semibold">{stageSummary.filed} pending</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full border-2 border-gray-300" />
-            <span className="text-gray-600">{stageSummary.notStarted} to go</span>
+          <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full">
+            <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-400" />
+            <span className="text-gray-600 font-semibold">{stageSummary.notStarted} to go</span>
           </div>
         </div>
       </div>
@@ -672,9 +686,10 @@ export default function TrackerPanel({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-        <p className="text-[10px] text-gray-500">
-          💡 Click stages in timeline to edit. Dates update your estimated completion.
+      <div className="px-5 py-3 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
+        <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
+          <span className="text-brand-500">💡</span>
+          <span>Click stages in timeline to edit • Dates update your estimate</span>
         </p>
       </div>
     </div>

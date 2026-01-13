@@ -286,8 +286,8 @@ export default function TimelineChart({
                   {/* Tracked path highlight background */}
                   {isTracked && (
                     <div 
-                      className="absolute -inset-y-3 bg-gradient-to-r from-brand-100/80 via-brand-50/60 to-transparent border-l-4 border-brand-500 rounded-r-xl -z-10"
-                      style={{ left: "-224px", right: "-24px" }}
+                      className="absolute -inset-y-4 bg-gradient-to-r from-brand-50 via-brand-50/40 to-transparent rounded-2xl -z-10 shadow-sm"
+                      style={{ left: "-228px", right: "-28px" }}
                     />
                   )}
                   
@@ -295,51 +295,57 @@ export default function TimelineChart({
                   <div className="absolute right-full mr-4 top-0 w-[200px]">
                     {/* Main path info - clickable to select */}
                     <div 
-                      className={`group/pathheader text-right p-2 -m-2 rounded-lg cursor-pointer transition-all ${
+                      className={`group/pathheader text-right p-3 -m-3 rounded-xl cursor-pointer transition-all duration-200 ${
                         isTracked 
-                          ? "bg-brand-500 shadow-md" 
-                          : "hover:bg-gray-100"
+                          ? "bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/25" 
+                          : "hover:bg-gray-50 hover:shadow-sm"
                       }`}
                       onClick={() => onSelectPath?.(path)}
                     >
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 mb-0.5">
                         {isTracked ? (
-                          <span className="flex items-center gap-1 text-[10px] text-white/90 bg-brand-600 px-1.5 py-0.5 rounded font-medium">
-                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                          <span className="flex items-center gap-1.5 text-[10px] text-white bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full font-semibold tracking-wide uppercase">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse shadow-sm" />
                             Tracking
                           </span>
                         ) : onSelectPath && (
-                          <span className="flex items-center gap-1 text-[10px] text-gray-400 px-1.5 py-0.5 rounded opacity-0 group-hover/pathheader:opacity-100 transition-opacity">
-                            Click to track →
+                          <span className="flex items-center gap-1 text-[10px] text-brand-600 font-medium px-2 py-1 rounded-full bg-brand-50 opacity-0 group-hover/pathheader:opacity-100 transition-all duration-200">
+                            Track this →
                           </span>
                         )}
-                        <div className={`font-semibold text-sm ${isTracked ? "text-white" : "text-gray-900"}`}>
-                          {path.name}
-                        </div>
                       </div>
-                      <div className={`text-xs ${isTracked ? "text-white/80" : "text-gray-500"}`}>
+                      <div className={`font-bold text-sm leading-tight ${isTracked ? "text-white" : "text-gray-900"}`}>
+                        {path.name}
+                      </div>
+                      <div className={`text-xs mt-0.5 ${isTracked ? "text-white/90" : "text-gray-500"}`}>
                         {path.totalYears.display} · ${path.estimatedCost.toLocaleString()}
                       </div>
-                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                        <span className={`text-[10px] font-medium ${isTracked ? "text-white/90" : "text-brand-600"}`}>
+                      <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isTracked ? "bg-white/20 text-white" : "bg-brand-100 text-brand-700"}`}>
                           {path.gcCategory}
                         </span>
                         {path.hasLottery && (
-                          <span className={`text-[9px] px-1 rounded ${isTracked ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"}`}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${isTracked ? "bg-amber-400/30 text-amber-100" : "bg-amber-100 text-amber-700"}`}>
                             lottery
                           </span>
                         )}
                         {path.isSelfPetition && (
-                          <span className={`text-[9px] px-1 rounded ${isTracked ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${isTracked ? "bg-emerald-400/30 text-emerald-100" : "bg-emerald-100 text-emerald-700"}`}>
                             self-file
                           </span>
                         )}
                       </div>
                     </div>
                     {multiTrack && (
-                      <div className="mt-1 text-[10px] text-gray-400 space-y-0.5 text-right">
-                        <div>{trackLabels.status}</div>
-                        <div>{trackLabels.gc}</div>
+                      <div className={`mt-2 text-[10px] space-y-1 text-right ${isTracked ? "text-brand-700/60" : "text-gray-400"}`}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="w-2 h-2 rounded-sm bg-emerald-400/60" />
+                          <span>{trackLabels.status}</span>
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="w-2 h-2 rounded-sm bg-amber-400/60" />
+                          <span>{trackLabels.gc}</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -406,9 +412,9 @@ export default function TimelineChart({
                       return (
                         <div
                           key={`${stage.nodeId}-${idx}`}
-                          className={`absolute rounded cursor-pointer transition-all duration-150 border text-white
+                          className={`absolute rounded-lg cursor-pointer transition-all duration-200 border text-white shadow-sm
                             ${bgColor} ${borderColor}
-                            ${isHovered ? "ring-2 ring-offset-1 ring-red-400 scale-105 z-30" : "z-10"}
+                            ${isHovered ? "ring-2 ring-offset-2 ring-orange-400 scale-[1.03] z-30 shadow-lg" : "z-10 hover:shadow-md hover:scale-[1.01]"}
                           `}
                           style={{
                             left: `${left}px`,
@@ -420,14 +426,14 @@ export default function TimelineChart({
                           onMouseEnter={() => setHoveredStage(`${path.id}-${idx}`)}
                           onMouseLeave={() => setHoveredStage(null)}
                         >
-                          <div className="h-full px-1.5 flex flex-col justify-center overflow-hidden relative">
+                          <div className="h-full px-2 flex flex-col justify-center overflow-hidden relative">
                             {isApproved && (
-                              <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-green-600 font-bold text-sm">
-                                ✓
+                              <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md shadow-green-500/30">
+                                <span className="text-white text-[10px] font-bold">✓</span>
                               </div>
                             )}
                             <div className={`font-semibold text-[10px] leading-tight truncate ${isApproved ? "line-through opacity-70" : ""}`}>
-                              PD Wait
+                              ⏳ PD Wait
                             </div>
                             <div className={`text-[9px] opacity-90 leading-tight truncate ${isApproved ? "line-through" : ""}`}>
                               {stage.durationYears.display}
@@ -542,8 +548,8 @@ export default function TimelineChart({
                       return (
                         <div
                           key={`${stage.nodeId}-${idx}`}
-                          className={`absolute cursor-pointer transition-all duration-150
-                            ${isHovered ? "scale-105 z-30" : "z-10"}
+                          className={`absolute cursor-pointer transition-all duration-200
+                            ${isHovered ? "scale-110 z-30" : "z-10 hover:scale-105"}
                           `}
                           style={{
                             left: `${left}px`,
@@ -555,21 +561,30 @@ export default function TimelineChart({
                         >
                           {/* Clean finish marker */}
                           <div
-                            className={`h-8 px-3 rounded-full border-2 text-white font-semibold text-xs flex items-center justify-center shadow-sm ${
+                            className={`h-8 px-4 rounded-full border-2 text-white font-bold text-xs flex items-center justify-center gap-1.5 ${
                               isApproved 
-                                ? "bg-green-700 border-green-800" 
-                                : "bg-green-600 border-green-700"
+                                ? "bg-gradient-to-r from-green-600 to-green-700 border-green-700 shadow-lg shadow-green-500/40" 
+                                : "bg-gradient-to-r from-green-500 to-green-600 border-green-600 shadow-md shadow-green-500/30"
                             }`}
                           >
-                            {isApproved && <span className="mr-1">✓</span>}
-                            Green Card
+                            {isApproved ? (
+                              <>
+                                <span className="text-sm">🎉</span>
+                                <span>Green Card!</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-sm">🏁</span>
+                                <span>Green Card</span>
+                              </>
+                            )}
                           </div>
 
                           {/* Tooltip on hover */}
                           {isHovered && (
-                            <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap z-40">
-                              <div className="font-semibold">Permanent Resident</div>
-                              <div className="text-gray-400 text-[10px]">No expiration</div>
+                            <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-40">
+                              <div className="font-bold text-green-400">🇺🇸 Permanent Resident</div>
+                              <div className="text-gray-400 text-[10px] mt-0.5">No renewal required • Work anywhere</div>
                             </div>
                           )}
                         </div>
@@ -585,11 +600,11 @@ export default function TimelineChart({
                     return (
                       <div
                             key={`${stage.nodeId}-${idx}`}
-                            className={`absolute rounded cursor-pointer transition-all duration-150 border overflow-hidden
+                            className={`absolute rounded-lg cursor-pointer transition-all duration-200 border overflow-hidden shadow-sm
                               ${stageColorClass}
-                              ${isHovered ? "ring-2 ring-offset-1 ring-brand-400 scale-105 z-30" : "z-10"}
-                              ${isCurrentStatus && !hasProgress && !isNextStep ? "ring-2 ring-offset-1 ring-red-500" : ""}
-                              ${isNextStep ? "ring-2 ring-offset-1 ring-brand-500" : ""}
+                              ${isHovered ? "ring-2 ring-offset-2 ring-brand-400 scale-[1.03] z-30 shadow-lg" : "z-10 hover:shadow-md hover:scale-[1.01]"}
+                              ${isCurrentStatus && !hasProgress && !isNextStep ? "ring-2 ring-offset-2 ring-red-500 shadow-red-200" : ""}
+                              ${isNextStep ? "ring-2 ring-offset-2 ring-brand-500 shadow-brand-200" : ""}
                             `}
                             style={{
                               left: `${left}px`,
@@ -604,7 +619,7 @@ export default function TimelineChart({
                             {/* Progress fill for filed stages */}
                             {isFiled && !isApproved && progressPercent > 0 && (
                               <div 
-                                className="absolute inset-y-0 left-0 bg-blue-700/30"
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-700/40 to-blue-600/20"
                                 style={{ width: `${progressPercent}%` }}
                               />
                             )}
@@ -612,34 +627,34 @@ export default function TimelineChart({
                             {/* Now marker - vertical line showing current position */}
                             {isFiled && !isApproved && progressPercent > 0 && progressPercent < 100 && (
                               <div 
-                                className="absolute top-0 bottom-0 w-0.5 bg-white/70"
+                                className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-sm"
                                 style={{ left: `${progressPercent}%` }}
                               >
-                                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full border border-blue-700" />
+                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full border-2 border-blue-600 shadow-sm" />
                               </div>
                             )}
                             
-                            <div className="h-full px-1 flex flex-col justify-center overflow-hidden relative z-10">
+                            <div className="h-full px-1.5 flex flex-col justify-center overflow-hidden relative z-10">
                               {/* Current status indicator (from profile) */}
                               {isCurrentStatus && !hasProgress && !isNextStep && (
-                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
-                                  YOU ARE HERE
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-500 to-red-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md shadow-red-500/30 tracking-wide">
+                                  📍 YOU ARE HERE
                                 </div>
                               )}
                               {/* Next step indicator (when tracking) */}
                               {isNextStep && (
-                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap animate-pulse">
-                                  → NEXT
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-500 to-brand-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md shadow-brand-500/30 animate-pulse tracking-wide">
+                                  → NEXT STEP
                                 </div>
                               )}
                               {isApproved && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-green-700 font-bold text-sm">
-                                  ✓
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-md shadow-green-500/30">
+                                  <span className="text-white text-[10px] font-bold">✓</span>
                                 </div>
                               )}
                               {isFiled && !isApproved && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-blue-600 font-bold text-[10px]">
-                                  FILED
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-700 text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm tracking-wide">
+                                  PENDING
                                 </div>
                               )}
                               {isCompact ? (
@@ -719,31 +734,35 @@ export default function TimelineChart({
         </div>
 
         {/* Legend + Disclaimer */}
-        <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center gap-6 justify-center">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-emerald-500" />
-              <span className="text-sm text-gray-600">Work Status</span>
+        <div className="mt-8 space-y-4">
+          <div className="flex flex-wrap items-center gap-4 justify-center bg-gray-50/80 rounded-xl py-3 px-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-md bg-emerald-500 shadow-sm" />
+              <span className="text-xs text-gray-600 font-medium">Work Status</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-amber-500" />
-              <span className="text-sm text-gray-600">GC Process</span>
+            <div className="w-px h-4 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-md bg-amber-500 shadow-sm" />
+              <span className="text-xs text-gray-600 font-medium">GC Process</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500" />
-              <span className="text-sm text-gray-600">Filed</span>
+            <div className="w-px h-4 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-md bg-blue-500 shadow-sm" />
+              <span className="text-xs text-gray-600 font-medium">Filed/Pending</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-600" />
-              <span className="text-sm text-gray-600">Approved</span>
+            <div className="w-px h-4 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-md bg-green-600 shadow-sm" />
+              <span className="text-xs text-gray-600 font-medium">Approved</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-orange-500" />
-              <span className="text-sm text-gray-600">PD Wait</span>
+            <div className="w-px h-4 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-md bg-orange-500 shadow-sm" />
+              <span className="text-xs text-gray-600 font-medium">PD Wait</span>
             </div>
           </div>
-          <p className="text-[11px] text-gray-400 text-center">
-            Live data from DOL, USCIS, and State Dept. Timelines are estimates. Consult an immigration attorney for your situation.
+          <p className="text-[11px] text-gray-400 text-center max-w-2xl mx-auto leading-relaxed">
+            📊 Live data from DOL, USCIS, and State Department. Timelines are estimates based on current processing times. Consult an immigration attorney for your specific situation.
           </p>
         </div>
 
