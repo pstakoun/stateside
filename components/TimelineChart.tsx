@@ -93,8 +93,34 @@ function getFiledProgress(filedDate: string | undefined, durationMonths: number)
   return Math.min(100, Math.max(0, (elapsed / durationMonths) * 100));
 }
 
-// Typical processing times in months (for estimation when no actual data)
-const TYPICAL_PROCESSING_MONTHS: Record<string, number> = {
+// Status visas - these have a VALIDITY PERIOD after approval
+// For these, approved date = START of validity, not end of processing
+const STATUS_VISA_NODES = new Set(['tn', 'h1b', 'opt', 'f1', 'l1a', 'l1b', 'o1']);
+
+// Validity duration in months for status visas (how long the visa is valid after approval)
+const STATUS_VISA_VALIDITY_MONTHS: Record<string, number> = {
+  tn: 36,   // TN valid for 3 years
+  h1b: 36,  // H1B valid for 3 years (initial)
+  opt: 36,  // OPT valid for 1-3 years (STEM)
+  f1: 48,   // Student status duration
+  l1a: 36,  // L1A valid for 3 years
+  l1b: 36,  // L1B valid for 3 years
+  o1: 36,   // O1 valid for 3 years
+};
+
+// Typical processing times in months for status visa applications
+const STATUS_VISA_PROCESSING_MONTHS: Record<string, number> = {
+  tn: 0.5,  // TN at border: same day to a few weeks
+  h1b: 3,   // H1B: 2-4 months (or 15 days premium)
+  opt: 3,   // OPT: 2-4 months
+  f1: 2,    // F1: 1-3 months
+  l1a: 3,   // L1: 2-4 months
+  l1b: 3,
+  o1: 3,    // O1: 2-4 months (or 15 days premium)
+};
+
+// Typical processing times in months for GC processing steps
+const PROCESSING_STEP_MONTHS: Record<string, number> = {
   pwd: 7,
   recruit: 2.5,
   perm: 15,
@@ -104,13 +130,12 @@ const TYPICAL_PROCESSING_MONTHS: Record<string, number> = {
   eb1b: 9,
   eb1c: 9,
   eb2niw: 12,
-  h1b: 24,
-  tn: 36,
-  opt: 24,
-  f1: 24,
-  l1a: 18,
-  l1b: 36,
-  o1: 24,
+};
+
+// Combined lookup for backward compatibility
+const TYPICAL_PROCESSING_MONTHS: Record<string, number> = {
+  ...PROCESSING_STEP_MONTHS,
+  ...STATUS_VISA_VALIDITY_MONTHS,
 };
 
 // Convert a date to "years from today" (negative = past, positive = future)
@@ -181,17 +206,70 @@ function adjustStagesForProgress(
     let adjustedStart = stage.startYear;
     let adjustedDuration = stage.durationYears;
 
-    if (sp?.status === "approved" && sp.filedDate && sp.approvedDate) {
-      // APPROVED with dates: use actual duration
+    const isStatusVisa = STATUS_VISA_NODES.has(stage.nodeId);
+    
+    if (isStatusVisa && sp?.status === "approved" && sp.approvedDate) {
+      // STATUS VISA APPROVED: Visa validity STARTS at approved date
+      // The bar shows the validity period, not the processing time
+      const approvedDate = parseDate(sp.approvedDate);
+      
+      if (approvedDate) {
+        // Visa starts when approved
+        adjustedStart = dateToYearsFromNow(approvedDate);
+        
+        // Use full validity duration (e.g., 3 years for TN)
+        const validityMonths = STATUS_VISA_VALIDITY_MONTHS[stage.nodeId] || 36;
+        const validityYears = validityMonths / 12;
+        
+        adjustedDuration = {
+          min: validityYears,
+          max: validityYears,
+          display: `${validityYears.toFixed(0)} yr`,
+        };
+        
+        // Update track end time to when visa expires
+        const endYear = adjustedStart + validityYears;
+        if (!stage.isConcurrent) {
+          trackEndYears[track] = Math.max(trackEndYears[track], endYear);
+        }
+      }
+    } else if (isStatusVisa && sp?.status === "filed" && sp.filedDate) {
+      // STATUS VISA FILED: Show processing time + upcoming validity
+      const filedDate = parseDate(sp.filedDate);
+      
+      if (filedDate) {
+        adjustedStart = dateToYearsFromNow(filedDate);
+        
+        // Processing time for status visas is usually short
+        const processingMonths = STATUS_VISA_PROCESSING_MONTHS[stage.nodeId] || 1;
+        const elapsedMonths = monthsBetween(filedDate, now);
+        const remainingProcessing = Math.max(0.5, processingMonths - elapsedMonths);
+        
+        // After processing, the visa validity begins
+        const validityMonths = STATUS_VISA_VALIDITY_MONTHS[stage.nodeId] || 36;
+        const totalMonths = elapsedMonths + remainingProcessing + validityMonths;
+        const totalYears = totalMonths / 12;
+        
+        adjustedDuration = {
+          min: totalYears * 0.9,
+          max: totalYears,
+          display: `~${(validityMonths / 12).toFixed(0)} yr`,
+        };
+        
+        const estimatedEndYear = adjustedStart + totalYears;
+        if (!stage.isConcurrent) {
+          trackEndYears[track] = Math.max(trackEndYears[track], estimatedEndYear);
+        }
+      }
+    } else if (sp?.status === "approved" && sp.filedDate && sp.approvedDate) {
+      // PROCESSING STEP APPROVED with dates: use actual duration (filed → approved)
       const filedDate = parseDate(sp.filedDate);
       const approvedDate = parseDate(sp.approvedDate);
       
       if (filedDate && approvedDate) {
-        // Calculate actual duration in years
         const actualMonths = monthsBetween(filedDate, approvedDate);
-        const actualYears = Math.max(0.1, actualMonths / 12); // Min 0.1 for visibility
+        const actualYears = Math.max(0.1, actualMonths / 12);
         
-        // Start position is when it was filed (relative to now)
         adjustedStart = dateToYearsFromNow(filedDate);
         
         adjustedDuration = {
@@ -202,19 +280,17 @@ function adjustStagesForProgress(
             : `${actualYears.toFixed(1)} yr`,
         };
         
-        // Update track end time
         const endYear = dateToYearsFromNow(approvedDate);
         if (!stage.isConcurrent) {
           trackEndYears[track] = Math.max(trackEndYears[track], endYear);
         }
       }
     } else if (sp?.status === "approved" && sp.approvedDate) {
-      // Approved but no filed date - use approval date as end
+      // PROCESSING STEP APPROVED but no filed date
       const approvedDate = parseDate(sp.approvedDate);
       if (approvedDate) {
         const endYear = dateToYearsFromNow(approvedDate);
-        // Estimate start as approval minus typical duration
-        const typicalMonths = TYPICAL_PROCESSING_MONTHS[stage.nodeId] || 6;
+        const typicalMonths = PROCESSING_STEP_MONTHS[stage.nodeId] || 6;
         adjustedStart = endYear - (typicalMonths / 12);
         
         if (!stage.isConcurrent) {
@@ -222,14 +298,13 @@ function adjustStagesForProgress(
         }
       }
     } else if (sp?.status === "filed" && sp.filedDate) {
-      // FILED: use filed date as start, estimate end
+      // PROCESSING STEP FILED: show elapsed + estimated remaining
       const filedDate = parseDate(sp.filedDate);
       
       if (filedDate) {
         adjustedStart = dateToYearsFromNow(filedDate);
         
-        // Use typical processing time for remaining duration estimation
-        const typicalMonths = TYPICAL_PROCESSING_MONTHS[stage.nodeId] || (stage.durationYears.max * 12);
+        const typicalMonths = PROCESSING_STEP_MONTHS[stage.nodeId] || (stage.durationYears.max * 12);
         const elapsedMonths = monthsBetween(filedDate, now);
         const remainingMonths = Math.max(1, typicalMonths - elapsedMonths);
         const totalMonths = elapsedMonths + remainingMonths;
@@ -243,7 +318,6 @@ function adjustStagesForProgress(
             : `${totalYears.toFixed(1)} yr`,
         };
         
-        // Estimated end
         const estimatedEndYear = adjustedStart + totalYears;
         if (!stage.isConcurrent) {
           trackEndYears[track] = Math.max(trackEndYears[track], estimatedEndYear);
