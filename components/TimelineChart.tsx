@@ -489,7 +489,8 @@ export default function TimelineChart({
           </div>
           
           {/* Today marker - vertical line at position 0 */}
-          {selectedPathId && (
+          {/* Show when any progress data exists (since all paths use actual dates) */}
+          {globalProgress && Object.keys(globalProgress.stages).length > 0 && (
             <div 
               className="absolute top-0 bottom-0 w-0.5 bg-brand-500 z-20 pointer-events-none"
               style={{ left: 0 }}
@@ -602,10 +603,9 @@ export default function TimelineChart({
 
                   {/* Find current stage index (first non-approved stage) for tracked path */}
                   {(() => {
-                    // Adjust stage positions based on actual progress (for tracked path)
-                    const adjustedStages = isTracked 
-                      ? adjustStagesForProgress(path.stages, globalProgress)
-                      : path.stages;
+                    // Adjust stage positions based on actual progress (for ALL paths)
+                    // Since progress data is global, all paths should reflect actual dates
+                    const adjustedStages = adjustStagesForProgress(path.stages, globalProgress);
                     
                     // Calculate current stage for this path if it's being tracked
                     const currentStageIdx = isTracked ? adjustedStages.findIndex(s => {
