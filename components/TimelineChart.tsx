@@ -38,6 +38,14 @@ const categoryColors: Record<string, { bg: string; border: string; text: string 
   citizenship: { bg: "bg-purple-500", border: "border-purple-600", text: "text-white" },
 };
 
+const categoryAccents: Record<string, string> = {
+  origin: "border-l-gray-400",
+  entry: "border-l-brand-600",
+  work: "border-l-emerald-500",
+  greencard: "border-l-amber-500",
+  citizenship: "border-l-purple-500",
+};
+
 const trackLabels: Record<string, string> = {
   status: "Status",
   gc: "GC Process",
@@ -72,6 +80,32 @@ function formatDateShort(dateStr?: string): string {
   } catch {
     return dateStr;
   }
+}
+
+function formatRelativeYears(years: number): string {
+  const absYears = Math.abs(years);
+  if (absYears < 0.08) return "now";
+  if (absYears < 1) {
+    const months = Math.max(1, Math.round(absYears * 12));
+    return `${months} mo`;
+  }
+  return absYears < 2 ? `${absYears.toFixed(1)} yr` : `${Math.round(absYears)} yr`;
+}
+
+function formatStageTiming(startYear: number): string {
+  const relative = formatRelativeYears(startYear);
+  if (relative === "now") return "Starts now";
+  return startYear >= 0 ? `Starts in ${relative}` : `Started ${relative} ago`;
+}
+
+function getPriorityWaitLabel(stage: ComposedStage): string {
+  if (stage.note?.includes("Filing") || stage.note?.includes("Dates for Filing")) {
+    return "Filing wait";
+  }
+  if (stage.note?.includes("Final Action") || stage.note?.includes("approval")) {
+    return "Approval wait";
+  }
+  return "Priority date wait";
 }
 
 // Calculate months between two dates
@@ -422,6 +456,8 @@ export default function TimelineChart({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
+  const [expandedMobilePathId, setExpandedMobilePathId] = useState<string | null>(null);
+  const hasInitializedMobileExpand = useRef(false);
   // Initialize with defaults to prevent timeline flicker when API data loads
   // The defaults match what the API would return, so PD Wait stages render correctly from the start
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"]>(DEFAULT_PRIORITY_DATES);
@@ -488,6 +524,20 @@ export default function TimelineChart({
       return 0;
     });
   }, [paths, selectedPathId]);
+
+  useEffect(() => {
+    if (hasInitializedMobileExpand.current) return;
+    if (sortedPaths.length > 0) {
+      setExpandedMobilePathId(selectedPathId ?? sortedPaths[0].id);
+      hasInitializedMobileExpand.current = true;
+    }
+  }, [sortedPaths, selectedPathId]);
+
+  useEffect(() => {
+    if (selectedPathId) {
+      setExpandedMobilePathId(selectedPathId);
+    }
+  }, [selectedPathId]);
 
   // Track paths generated for analytics (debounced to avoid duplicate events)
   const lastTrackedFilters = useRef<string>("");
@@ -557,9 +607,330 @@ export default function TimelineChart({
     return { nowPosition, hasProgress: true };
   }, [paths, selectedPathId, globalProgress]);
 
+  const statusBadgeStyles: Record<string, string> = {
+    not_started: "bg-gray-100 text-gray-600",
+    filed: "bg-blue-100 text-blue-700",
+    approved: "bg-green-100 text-green-700",
+  };
+
+  const renderMobileStageCard = (
+    path: ComposedPath,
+    stage: ComposedStage,
+    idx: number,
+    isTracked: boolean,
+    nextStageId: string | null
+  ) => {
+    const node = getNode(stage.nodeId);
+    const nodeName = node?.name || stage.nodeId;
+    const nodeCategory = node?.category || "work";
+    const stageProgress = getStageProgress(path.id, stage.nodeId);
+    const stageStatus = stageProgress?.status || "not_started";
+    const isApproved = stageStatus === "approved";
+    const isFiled = stageStatus === "filed";
+    const hasProgress = isApproved || isFiled;
+    const isCurrentStatus = stage.nodeId === currentNodeId;
+    const isNextStep = isTracked && nextStageId === stage.nodeId;
+    const isFinalGC = stage.nodeId === "gc";
+    const isStatusVisaStage = isStatusVisa(stage.nodeId);
+    const durationLabel = stage.durationYears.display ||
+      `${stage.durationYears.min.toFixed(1)}-${stage.durationYears.max.toFixed(1)} yr`;
+    const statusLabel = stage.isPriorityWait
+      ? getPriorityWaitLabel(stage)
+      : isFinalGC
+      ? "Green Card"
+      : stageStatus === "approved"
+      ? "Approved"
+      : stageStatus === "filed"
+      ? "Filed"
+      : "Not started";
+    const statusClass = stage.isPriorityWait
+      ? "bg-orange-100 text-orange-700"
+      : isFinalGC
+      ? "bg-green-100 text-green-700"
+      : statusBadgeStyles[stageStatus];
+    const accentClass = stage.isPriorityWait
+      ? "border-l-4 border-l-orange-500"
+      : isFinalGC
+      ? "border-l-4 border-l-green-600"
+      : `border-l-4 ${categoryAccents[nodeCategory] || "border-l-gray-300"}`;
+    const progressPercent = isFiled && !isApproved
+      ? getFiledProgress(stageProgress?.filedDate, (stage.durationYears?.max || 0.5) * 12)
+      : 0;
+
+    return (
+      <button
+        key={`${stage.nodeId}-${idx}`}
+        type="button"
+        className={`w-full text-left rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow ${accentClass}`}
+        onClick={() => handleStageClick(stage.nodeId, path)}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wide text-gray-400">
+              {trackLabels[stage.track]}
+            </div>
+            <div className="text-sm font-semibold text-gray-900">{nodeName}</div>
+          </div>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusClass}`}>
+              {statusLabel}
+            </span>
+            <span className="text-[10px] text-gray-500">{durationLabel}</span>
+          </div>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
+          <span>{formatStageTiming(stage.startYear)}</span>
+          {stage.isConcurrent && (
+            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              Concurrent
+            </span>
+          )}
+          {isCurrentStatus && !hasProgress && !isNextStep && (
+            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+              You are here
+            </span>
+          )}
+          {isNextStep && (
+            <span className="px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 font-semibold">
+              Next step
+            </span>
+          )}
+        </div>
+
+        {isFiled && stageProgress?.filedDate && (
+          <div className="mt-2 text-[10px] text-blue-700">
+            Filed {formatDateForDisplay(stageProgress.filedDate)}
+            {progressPercent > 0 && (
+              <span className="text-blue-500"> • {Math.round(progressPercent)}% elapsed</span>
+            )}
+          </div>
+        )}
+        {isApproved && stageProgress?.approvedDate && (
+          <div className="mt-2 text-[10px] text-green-700">
+            Approved {formatDateForDisplay(stageProgress.approvedDate)}
+            {isStatusVisaStage && (
+              <span className="text-gray-500">
+                {" "}
+                (valid {Math.round((STATUS_VISA_VALIDITY_MONTHS[stage.nodeId] || 36) / 12)} yrs)
+              </span>
+            )}
+          </div>
+        )}
+        {stageProgress?.receiptNumber && (
+          <div className="mt-1 text-[10px] font-mono text-gray-500">
+            {stageProgress.receiptNumber}
+          </div>
+        )}
+
+        {stage.note && (
+          <div className="mt-2 text-[11px] text-gray-600 leading-snug">
+            {stage.note}
+          </div>
+        )}
+
+        {stage.isPriorityWait && (
+          <div className="mt-2 space-y-1 text-[10px] text-gray-600">
+            {stage.priorityDateStr && (
+              <div>Visa bulletin cutoff: {stage.priorityDateStr}</div>
+            )}
+            {stage.velocityInfo && stage.velocityInfo.rangeMin !== stage.velocityInfo.rangeMax && (
+              <div>
+                Estimated range: {Math.round(stage.velocityInfo.rangeMin / 12)}-
+                {Math.round(stage.velocityInfo.rangeMax / 12)} yr
+              </div>
+            )}
+          </div>
+        )}
+      </button>
+    );
+  };
+
   return (
-    <div className="w-full h-full overflow-x-auto overflow-y-auto bg-gray-50">
-      <div className="min-w-[1200px] p-6">
+    <div className="w-full h-full bg-gray-50">
+      {/* Mobile-first vertical timeline */}
+      <div className="lg:hidden h-full overflow-y-auto">
+        <div className="px-4 py-4 space-y-4">
+          {selectedPathId && globalProgress && (
+            <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-[11px] text-brand-700 flex items-start gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+              <span>Tap any step to edit details in the tracker.</span>
+            </div>
+          )}
+
+          {sortedPaths.length === 0 && (
+            <div className="py-12 text-center text-gray-500">
+              <p className="text-lg font-medium">No matching paths</p>
+              <p className="text-sm mt-1">
+                Try adjusting your criteria to see available immigration paths.
+              </p>
+            </div>
+          )}
+
+          {sortedPaths.map((path) => {
+            const isTracked = selectedPathId === path.id;
+            const isExpanded = expandedMobilePathId === path.id;
+            const adjustedStages = adjustStagesForProgress(path.stages, globalProgress);
+            const stagesWithIndex = adjustedStages.map((stage, index) => ({ stage, index }));
+            const trackableStages = stagesWithIndex.filter(({ stage }) => !stage.isPriorityWait && stage.nodeId !== "gc");
+            const nextStageId = isTracked
+              ? trackableStages.find(({ stage }) => {
+                  const sp = getStageProgress(path.id, stage.nodeId);
+                  return !sp || sp.status !== "approved";
+                })?.stage.nodeId || null
+              : null;
+            const statusStages = stagesWithIndex
+              .filter(({ stage }) => stage.track === "status")
+              .sort((a, b) => a.stage.startYear - b.stage.startYear || a.index - b.index);
+            const gcStages = stagesWithIndex
+              .filter(({ stage }) => stage.track === "gc")
+              .sort((a, b) => a.stage.startYear - b.stage.startYear || a.index - b.index);
+            const stageCount = trackableStages.length;
+
+            return (
+              <div
+                key={path.id}
+                className={`rounded-xl border bg-white shadow-sm ${
+                  isTracked ? "border-brand-500 ring-1 ring-brand-100" : "border-gray-200"
+                }`}
+              >
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900">{path.name}</h3>
+                        {isTracked && (
+                          <span className="text-[10px] font-semibold text-white bg-brand-600 px-2 py-0.5 rounded-full">
+                            Tracking
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-1">
+                        {path.gcCategory} • {path.totalYears.display}
+                      </div>
+                    </div>
+                    {onSelectPath && (
+                      <button
+                        type="button"
+                        onClick={() => onSelectPath(path)}
+                        className={`px-3 py-1.5 text-[11px] font-semibold rounded-full transition-colors ${
+                          isTracked
+                            ? "bg-brand-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {isTracked ? "Tracking" : "Track"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-[11px] text-gray-600">
+                    <span className="px-2 py-1 bg-gray-100 rounded-full">
+                      Time {path.totalYears.display}
+                    </span>
+                    <span className="px-2 py-1 bg-gray-100 rounded-full">
+                      Cost ${path.estimatedCost.toLocaleString()}
+                    </span>
+                    <span className="px-2 py-1 bg-gray-100 rounded-full">
+                      {stageCount} steps
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 text-[10px] font-medium">
+                    <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700">
+                      {path.gcCategory}
+                    </span>
+                    {path.hasLottery && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                        Lottery
+                      </span>
+                    )}
+                    {path.isSelfPetition && (
+                      <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        Self-file
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setExpandedMobilePathId(isExpanded ? null : path.id)}
+                    className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
+                  >
+                    {isExpanded ? "Hide steps" : "View steps"}
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t bg-gray-50/70 px-4 py-4 space-y-4">
+                    <div className="text-[11px] text-gray-600 leading-snug">
+                      {path.description}
+                    </div>
+
+                    <div className="text-[10px] text-gray-500">
+                      Tap a step to {isTracked ? "update progress" : "view details"}.
+                    </div>
+
+                    {statusStages.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                            Status track
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {statusStages.length} steps
+                          </div>
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          {statusStages.map(({ stage, index }) =>
+                            renderMobileStageCard(path, stage, index, isTracked, nextStageId)
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {gcStages.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            Green card track
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {gcStages.length} steps
+                          </div>
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          {gcStages.map(({ stage, index }) =>
+                            renderMobileStageCard(path, stage, index, isTracked, nextStageId)
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop timeline */}
+      <div className="hidden lg:block w-full h-full overflow-x-auto overflow-y-auto">
+        <div className="min-w-[1200px] p-6">
         {/* Tracking instruction banner */}
         {selectedPathId && globalProgress && (
           <div className="mb-4 flex items-center justify-center gap-2 text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-4 py-2" style={{ marginLeft: "220px" }}>
@@ -1102,6 +1473,7 @@ export default function TimelineChart({
         </div>
 
       </div>
+    </div>
     </div>
   );
 }
