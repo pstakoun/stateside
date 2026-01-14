@@ -76,43 +76,49 @@ function MiniTimeline({
   const hasMultipleTracks = statusStages.length > 0 && gcStages.length > 0;
   
   // Calculate "now" position based on progress
-  // Find the furthest point we've reached (end of last completed/in-progress stage)
+  // Simple approach: find the first non-approved stage and put marker at its start
+  // This shows "you are here, about to do this next"
   const nowPosition = useMemo(() => {
     if (!globalProgress) return null;
     
-    let furthestEndYear = 0;
+    // Check if we have any progress at all
     let hasAnyProgress = false;
-    
     for (const stage of stages) {
       if (stage.isPriorityWait || stage.nodeId === "gc") continue;
-      
       const sp = globalProgress.stages[stage.nodeId];
-      if (!sp) continue;
-      
-      if (sp.status === "approved") {
-        // Completed stage - we're past its end
+      if (sp && (sp.status === "approved" || sp.status === "filed")) {
         hasAnyProgress = true;
-        const stageEnd = stage.startYear + (stage.durationYears?.max || 0);
-        furthestEndYear = Math.max(furthestEndYear, stageEnd);
-      } else if (sp.status === "filed" && sp.filedDate) {
-        // In-progress stage - estimate where we are within it
-        hasAnyProgress = true;
-        const filedDate = parseDate(sp.filedDate);
-        if (filedDate) {
-          const now = new Date();
-          const monthsElapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-          const stageMonths = (stage.durationYears?.max || 1) * 12;
-          const progressWithinStage = Math.min(monthsElapsed / stageMonths, 1);
-          const currentPosition = stage.startYear + (stage.durationYears?.max || 0) * progressWithinStage;
-          furthestEndYear = Math.max(furthestEndYear, currentPosition);
-        }
+        break;
       }
     }
     
     if (!hasAnyProgress) return null;
     
-    // Convert to percentage, clamped to reasonable bounds
-    const percent = Math.min(Math.max((furthestEndYear / maxYears) * 100, 2), 95);
+    // Find the first stage that is not approved (our current position)
+    // We look at stages in order and find where we currently are
+    let currentStageStart = 0;
+    
+    for (const stage of stages) {
+      if (stage.isPriorityWait || stage.nodeId === "gc") continue;
+      
+      const sp = globalProgress.stages[stage.nodeId];
+      
+      if (sp?.status === "approved") {
+        // This stage is done, we're past it
+        continue;
+      } else if (sp?.status === "filed") {
+        // Currently working on this stage - position at its start
+        currentStageStart = stage.startYear;
+        break;
+      } else {
+        // Not started yet - this is where we are (about to start)
+        currentStageStart = stage.startYear;
+        break;
+      }
+    }
+    
+    // Convert to percentage
+    const percent = Math.min(Math.max((currentStageStart / maxYears) * 100, 0), 95);
     return percent;
   }, [stages, globalProgress, maxYears]);
   
