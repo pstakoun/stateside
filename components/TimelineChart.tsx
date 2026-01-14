@@ -457,7 +457,6 @@ export default function TimelineChart({
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
   const [expandedMobilePathId, setExpandedMobilePathId] = useState<string | null>(null);
-  const hasInitializedMobileExpand = useRef(false);
   // Initialize with defaults to prevent timeline flicker when API data loads
   // The defaults match what the API would return, so PD Wait stages render correctly from the start
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"]>(DEFAULT_PRIORITY_DATES);
@@ -524,20 +523,6 @@ export default function TimelineChart({
       return 0;
     });
   }, [paths, selectedPathId]);
-
-  useEffect(() => {
-    if (hasInitializedMobileExpand.current) return;
-    if (sortedPaths.length > 0) {
-      setExpandedMobilePathId(selectedPathId ?? sortedPaths[0].id);
-      hasInitializedMobileExpand.current = true;
-    }
-  }, [sortedPaths, selectedPathId]);
-
-  useEffect(() => {
-    if (selectedPathId) {
-      setExpandedMobilePathId(selectedPathId);
-    }
-  }, [selectedPathId]);
 
   // Track paths generated for analytics (debounced to avoid duplicate events)
   const lastTrackedFilters = useRef<string>("");
