@@ -17,16 +17,139 @@ interface MobileTimelineProps {
   globalProgress: GlobalProgress | null;
 }
 
-const categoryColors: Record<string, { bg: string; border: string; text: string; light: string }> = {
-  entry: { bg: "bg-brand-600", border: "border-brand-700", text: "text-white", light: "bg-brand-100" },
-  work: { bg: "bg-emerald-500", border: "border-emerald-600", text: "text-white", light: "bg-emerald-100" },
-  greencard: { bg: "bg-amber-500", border: "border-amber-600", text: "text-white", light: "bg-amber-100" },
-  citizenship: { bg: "bg-purple-500", border: "border-purple-600", text: "text-white", light: "bg-purple-100" },
+const categoryColors: Record<string, { bg: string; border: string; text: string; light: string; hex: string }> = {
+  entry: { bg: "bg-brand-600", border: "border-brand-700", text: "text-white", light: "bg-brand-100", hex: "#16a34a" },
+  work: { bg: "bg-emerald-500", border: "border-emerald-600", text: "text-white", light: "bg-emerald-100", hex: "#10b981" },
+  greencard: { bg: "bg-amber-500", border: "border-amber-600", text: "text-white", light: "bg-amber-100", hex: "#f59e0b" },
+  citizenship: { bg: "bg-purple-500", border: "border-purple-600", text: "text-white", light: "bg-purple-100", hex: "#a855f7" },
+};
+
+// Special colors for stage states and types
+const stageStateColors = {
+  approved: "#22c55e", // green-500
+  filed: "#3b82f6", // blue-500
+  pdWait: "#f97316", // orange-500
+  pdWaitLong: "#ef4444", // red-500
 };
 
 // Get node info from visa data
 function getNode(nodeId: string) {
   return visaData.nodes[nodeId as keyof typeof visaData.nodes];
+}
+
+// Mini Timeline component - horizontal compressed visualization
+function MiniTimeline({
+  stages,
+  globalProgress,
+  totalYears,
+}: {
+  stages: ComposedStage[];
+  globalProgress: GlobalProgress | null;
+  totalYears: number;
+}) {
+  // Calculate the max end time to scale properly
+  const maxEndYear = Math.max(
+    totalYears,
+    ...stages.map(s => (s.startYear || 0) + (s.durationYears?.max || 0.5))
+  );
+  
+  // Separate stages by track
+  const statusTrack = stages.filter(s => s.track === "status" && s.nodeId !== "gc");
+  const gcTrack = stages.filter(s => (s.track === "gc" || s.isPriorityWait) && s.nodeId !== "gc");
+  const hasMultipleTracks = statusTrack.length > 0 && gcTrack.length > 0;
+  
+  // Render a single track of stages
+  const renderTrack = (trackStages: ComposedStage[], trackHeight: number) => {
+    return trackStages.map((stage, idx) => {
+      const node = getNode(stage.nodeId);
+      const startYear = stage.startYear || 0;
+      const duration = stage.durationYears?.max || 0.5;
+      
+      // Calculate position as percentage
+      const leftPercent = (startYear / maxEndYear) * 100;
+      const widthPercent = Math.max(2, (duration / maxEndYear) * 100); // Min 2% width for visibility
+      
+      // Determine color based on progress and type
+      const stageProgress = globalProgress?.stages[stage.nodeId];
+      const isApproved = stageProgress?.status === "approved";
+      const isFiled = stageProgress?.status === "filed";
+      
+      let color: string;
+      if (isApproved) {
+        color = stageStateColors.approved;
+      } else if (isFiled) {
+        color = stageStateColors.filed;
+      } else if (stage.isPriorityWait) {
+        const waitYears = duration;
+        color = waitYears >= 5 ? stageStateColors.pdWaitLong : stageStateColors.pdWait;
+      } else {
+        const category = node?.category || "work";
+        color = categoryColors[category]?.hex || categoryColors.work.hex;
+      }
+      
+      return (
+        <div
+          key={`${stage.nodeId}-${idx}`}
+          className="absolute rounded-sm"
+          style={{
+            left: `${leftPercent}%`,
+            width: `${widthPercent}%`,
+            height: `${trackHeight}px`,
+            backgroundColor: color,
+            opacity: isApproved ? 0.6 : 1,
+          }}
+          title={node?.name || stage.nodeId}
+        />
+      );
+    });
+  };
+  
+  // Find the GC endpoint marker position
+  const gcStage = stages.find(s => s.nodeId === "gc");
+  const gcPosition = gcStage ? ((gcStage.startYear || 0) / maxEndYear) * 100 : null;
+
+  return (
+    <div className="relative w-full bg-gray-100 rounded overflow-hidden" style={{ height: hasMultipleTracks ? "16px" : "10px" }}>
+      {/* Background grid lines for years */}
+      <div className="absolute inset-0 flex">
+        {Array.from({ length: Math.ceil(maxEndYear) }).map((_, i) => (
+          <div
+            key={i}
+            className="border-l border-gray-200"
+            style={{ width: `${100 / maxEndYear}%` }}
+          />
+        ))}
+      </div>
+      
+      {hasMultipleTracks ? (
+        <>
+          {/* Status track (top) */}
+          <div className="absolute left-0 right-0 top-0" style={{ height: "7px" }}>
+            {renderTrack(statusTrack, 7)}
+          </div>
+          {/* GC track (bottom) */}
+          <div className="absolute left-0 right-0 bottom-0" style={{ height: "7px" }}>
+            {renderTrack(gcTrack, 7)}
+          </div>
+        </>
+      ) : (
+        /* Single track */
+        <div className="absolute inset-0">
+          {renderTrack([...statusTrack, ...gcTrack], 10)}
+        </div>
+      )}
+      
+      {/* GC endpoint marker */}
+      {gcPosition !== null && (
+        <div
+          className="absolute top-0 bottom-0 w-1 bg-green-600 rounded-r"
+          style={{ left: `${Math.min(98, gcPosition)}%` }}
+        >
+          <div className="absolute -top-0.5 -bottom-0.5 -right-0.5 w-1.5 bg-green-600 rounded-full" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Format date short (for inline display)
@@ -418,6 +541,15 @@ function PathCard({
                   self-file
                 </span>
               )}
+            </div>
+            
+            {/* Mini Timeline Visualization */}
+            <div className="mt-3">
+              <MiniTimeline
+                stages={path.stages}
+                globalProgress={globalProgress}
+                totalYears={path.totalYears.max || 5}
+              />
             </div>
           </div>
 
