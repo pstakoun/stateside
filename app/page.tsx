@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react";
 import TimelineChart from "@/components/TimelineChart";
 import MobileTimelineView from "@/components/MobileTimelineView";
-import MobileTrackerSheet from "@/components/MobileTrackerSheet";
 import PathDetail from "@/components/PathDetail";
 import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
@@ -118,9 +117,6 @@ export default function Home() {
   const [globalProgress, setGlobalProgress] = useState<GlobalProgress | null>(null);
   const [selectedPath, setSelectedPath] = useState<ComposedPath | null>(null);
   const [expandedStageId, setExpandedStageId] = useState<string | null>(null);
-  
-  // Mobile-specific state
-  const [showMobileTracker, setShowMobileTracker] = useState(false);
 
   // Load stored profile and progress on mount
   useEffect(() => {
@@ -323,12 +319,9 @@ export default function Home() {
   // Handle clicking a stage in the timeline
   const handleTimelineStageClick = (nodeId: string) => {
     if (globalProgress?.selectedPathId && selectedPath) {
-      // If tracking, expand this stage in the panel
+      // If tracking, expand this stage in the panel/sheet
       setExpandedStageId(nodeId);
-      // On mobile, also show the tracker sheet
-      if (isMobile) {
-        setShowMobileTracker(true);
-      }
+      // On mobile, the MobileTimelineView handles showing the editor directly
     } else {
       // Otherwise, show the info panel
       setSelectedNode(nodeId);
@@ -429,17 +422,14 @@ export default function Home() {
             </div>
           )}
           
-          {/* Mobile: Show tracker button when tracking */}
+          {/* Mobile: Show tracking indicator */}
           {globalProgress?.selectedPathId && selectedPath && isMobile && (
-            <button
-              onClick={() => setShowMobileTracker(true)}
-              className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg text-sm"
-            >
+            <div className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg text-sm">
               <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
               <span className="font-medium">
-                {progressSummary ? `${progressSummary.approved}/${progressSummary.total}` : "View"}
+                {progressSummary ? `${progressSummary.approved}/${progressSummary.total}` : "Tracking"}
               </span>
-            </button>
+            </div>
           )}
         </div>
       </header>
@@ -457,30 +447,19 @@ export default function Home() {
       <div className="flex-1 flex overflow-hidden">
         {/* Mobile View */}
         {isMobile ? (
-          <>
-            <MobileTimelineView
-              onStageClick={handleTimelineStageClick}
-              filters={filters}
-              onMatchingCountChange={handleMatchingCountChange}
-              onSelectPath={handleSelectPath}
-              onPathsGenerated={handlePathsGenerated}
-              selectedPathId={globalProgress?.selectedPathId || null}
-              globalProgress={globalProgress}
-            />
-            
-            {/* Mobile Tracker Sheet */}
-            {showMobileTracker && globalProgress && selectedPath && (
-              <MobileTrackerSheet
-                path={selectedPath}
-                progress={globalProgress}
-                onUpdateStage={handleUpdateStage}
-                onUpdatePortedPD={handleUpdatePortedPD}
-                onClose={() => setShowMobileTracker(false)}
-                expandedStageId={expandedStageId}
-                onExpandStage={setExpandedStageId}
-              />
-            )}
-          </>
+          <MobileTimelineView
+            onStageClick={handleTimelineStageClick}
+            filters={filters}
+            onMatchingCountChange={handleMatchingCountChange}
+            onSelectPath={handleSelectPath}
+            onPathsGenerated={handlePathsGenerated}
+            selectedPathId={globalProgress?.selectedPathId || null}
+            globalProgress={globalProgress}
+            onUpdateStage={handleUpdateStage}
+            onUpdatePortedPD={handleUpdatePortedPD}
+            expandedStageId={expandedStageId}
+            onExpandStage={setExpandedStageId}
+          />
         ) : (
           <>
             {/* Desktop Timeline */}

@@ -22,6 +22,11 @@ interface MobileTimelineViewProps {
   onPathsGenerated?: (paths: ComposedPath[]) => void;
   selectedPathId?: string | null;
   globalProgress?: GlobalProgress | null;
+  // Stage editing props
+  onUpdateStage?: (nodeId: string, update: Partial<StageProgress>) => void;
+  onUpdatePortedPD?: (date: string | null, category: string | null) => void;
+  expandedStageId?: string | null;
+  onExpandStage?: (nodeId: string | null) => void;
 }
 
 const categoryColors: Record<string, { bg: string; border: string; text: string; light: string; hex: string }> = {
@@ -613,6 +618,205 @@ function MobileStageItem({
   );
 }
 
+// Stage Editor Sheet Component (inline)
+function StageEditorSheet({
+  stage,
+  stageProgress,
+  onUpdate,
+  onClose,
+}: {
+  stage: ComposedStage;
+  stageProgress: StageProgress;
+  onUpdate: (update: Partial<StageProgress>) => void;
+  onClose: () => void;
+}) {
+  const node = getNode(stage.nodeId);
+  const nodeName = node?.name || stage.nodeId;
+  const canHavePriorityDate = ["perm", "i140", "i140_niw"].includes(stage.nodeId);
+  const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
+
+  // Calculate remaining time for filed stages
+  const remainingTime = useMemo(() => {
+    if (stageProgress.status !== "filed" || !stageProgress.filedDate) return null;
+    
+    const filedDate = parseDate(stageProgress.filedDate);
+    if (!filedDate) return null;
+    
+    const now = new Date();
+    const diffMs = now.getTime() - filedDate.getTime();
+    const monthsElapsed = diffMs / (1000 * 60 * 60 * 24 * 30);
+    
+    if (stageMaxMonths === 0) return null;
+    const remaining = Math.max(0, stageMaxMonths - monthsElapsed);
+    
+    return { elapsed: monthsElapsed, remaining };
+  }, [stageProgress.status, stageProgress.filedDate, stageMaxMonths]);
+
+  const statusColors = {
+    not_started: "bg-gray-100 text-gray-700 border-gray-300",
+    filed: "bg-blue-100 text-blue-700 border-blue-300",
+    approved: "bg-green-100 text-green-700 border-green-300",
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/40 z-40 animate-fade-in"
+        onClick={onClose}
+      />
+      
+      {/* Sheet */}
+      <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto shadow-xl animate-slide-up safe-bottom">
+        {/* Drag handle */}
+        <div className="sticky top-0 bg-white pt-3 pb-2 border-b border-gray-100 z-10">
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto" />
+        </div>
+        
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-gray-900 text-lg">{nodeName}</h3>
+              {stage.durationYears && (
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Typical: {stage.durationYears.display}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 -m-2 text-gray-400 active:text-gray-600"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Status buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["not_started", "filed", "approved"] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => onUpdate({ status })}
+                  className={`py-3 px-2 text-sm font-medium rounded-xl border-2 transition-all active:scale-95 ${
+                    stageProgress.status === status
+                      ? statusColors[status]
+                      : "bg-white text-gray-500 border-gray-200"
+                  }`}
+                >
+                  {status === "not_started" ? "Not Started" : status === "filed" ? "Filed" : "Approved"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filed date */}
+          {(stageProgress.status === "filed" || stageProgress.status === "approved") && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Filed Date</label>
+              <input
+                type="date"
+                value={stageProgress.filedDate || ""}
+                onChange={(e) => onUpdate({ filedDate: e.target.value || undefined })}
+                className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+              {remainingTime && stageProgress.status === "filed" && (
+                <div className="mt-2 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <span className="font-medium">{Math.round(remainingTime.elapsed)} months</span> elapsed
+                    {remainingTime.remaining > 0 && (
+                      <span className="text-blue-600"> · ~{Math.round(remainingTime.remaining)} mo remaining</span>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Approved date */}
+          {stageProgress.status === "approved" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Approved Date</label>
+              <input
+                type="date"
+                value={stageProgress.approvedDate || ""}
+                onChange={(e) => onUpdate({ approvedDate: e.target.value || undefined })}
+                className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+          )}
+
+          {/* Receipt number */}
+          {(stageProgress.status === "filed" || stageProgress.status === "approved") && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Receipt Number
+                <span className="text-gray-400 font-normal ml-1 text-xs">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={stageProgress.receiptNumber || ""}
+                onChange={(e) => onUpdate({ receiptNumber: e.target.value || undefined })}
+                placeholder="e.g., EAC2490012345"
+                className="w-full px-4 py-3 text-base font-mono border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+          )}
+
+          {/* Priority date for I-140, PERM */}
+          {canHavePriorityDate && stageProgress.status === "approved" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priority Date
+                <span className="text-gray-400 font-normal ml-1 text-xs">(from approval)</span>
+              </label>
+              <input
+                type="date"
+                value={stageProgress.priorityDate || ""}
+                onChange={(e) => onUpdate({ priorityDate: e.target.value || undefined })}
+                className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Your place in the green card queue.
+              </p>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <textarea
+              value={stageProgress.notes || ""}
+              onChange={(e) => onUpdate({ notes: e.target.value || undefined })}
+              placeholder="Any additional notes..."
+              rows={2}
+              className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+            />
+          </div>
+        </div>
+        
+        {/* Safe area */}
+        <div className="h-6" />
+      </div>
+    </>
+  );
+}
+
+// Parse date string
+function parseDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  } catch {
+    return null;
+  }
+}
+
 // Main Mobile Timeline View Component
 export default function MobileTimelineView({
   onStageClick,
@@ -622,6 +826,10 @@ export default function MobileTimelineView({
   onPathsGenerated,
   selectedPathId,
   globalProgress,
+  onUpdateStage,
+  onUpdatePortedPD,
+  expandedStageId,
+  onExpandStage,
 }: MobileTimelineViewProps) {
   const [expandedPathId, setExpandedPathId] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
@@ -695,18 +903,36 @@ export default function MobileTimelineView({
     }
   }, [selectedPathId]);
 
+  // Find the stage being edited
+  const editingStage = useMemo(() => {
+    if (!expandedStageId || !selectedPathId) return null;
+    const trackedPath = paths.find(p => p.id === selectedPathId);
+    if (!trackedPath) return null;
+    return trackedPath.stages.find(s => s.nodeId === expandedStageId) || null;
+  }, [expandedStageId, selectedPathId, paths]);
+
+  const editingStageProgress = useMemo(() => {
+    if (!expandedStageId || !globalProgress) return { status: "not_started" as const };
+    return globalProgress.stages[expandedStageId] || { status: "not_started" as const };
+  }, [expandedStageId, globalProgress]);
+
   const handleStageClick = useCallback((nodeId: string, path: ComposedPath) => {
     const node = getNode(nodeId);
     const nodeName = node?.name || nodeId;
     trackStageClick(nodeId, nodeName);
     
-    // If this path isn't currently tracked, start tracking it
+    // If this path isn't currently tracked, start tracking it first
     if (selectedPathId !== path.id && onSelectPath) {
       onSelectPath(path);
     }
     
+    // Open the stage editor directly
+    if (onExpandStage) {
+      onExpandStage(nodeId);
+    }
+    
     onStageClick(nodeId);
-  }, [onStageClick, selectedPathId, onSelectPath]);
+  }, [onStageClick, selectedPathId, onSelectPath, onExpandStage]);
 
   const handleSelectPath = useCallback((path: ComposedPath) => {
     if (onSelectPath) {
@@ -717,6 +943,18 @@ export default function MobileTimelineView({
   const handleToggleExpand = useCallback((pathId: string) => {
     setExpandedPathId(current => current === pathId ? null : pathId);
   }, []);
+
+  const handleUpdateStage = useCallback((update: Partial<StageProgress>) => {
+    if (expandedStageId && onUpdateStage) {
+      onUpdateStage(expandedStageId, update);
+    }
+  }, [expandedStageId, onUpdateStage]);
+
+  const handleCloseEditor = useCallback(() => {
+    if (onExpandStage) {
+      onExpandStage(null);
+    }
+  }, [onExpandStage]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
@@ -806,6 +1044,16 @@ export default function MobileTimelineView({
           </div>
         )}
       </div>
+      
+      {/* Stage Editor Sheet - only shows when editing a stage */}
+      {editingStage && onUpdateStage && (
+        <StageEditorSheet
+          stage={editingStage}
+          stageProgress={editingStageProgress}
+          onUpdate={handleUpdateStage}
+          onClose={handleCloseEditor}
+        />
+      )}
     </div>
   );
 }
