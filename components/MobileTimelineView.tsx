@@ -46,6 +46,17 @@ const miniTimelineColors = {
   filed: "#3b82f6", // blue-500
 };
 
+// Parse date string helper
+function parseDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  } catch {
+    return null;
+  }
+}
+
 // Mini Timeline Component - compact visual preview of the path
 function MiniTimeline({ 
   stages, 
@@ -63,6 +74,47 @@ function MiniTimeline({
   const statusStages = stages.filter(s => s.track === "status" && !s.isPriorityWait && s.nodeId !== "gc");
   const gcStages = stages.filter(s => (s.track === "gc" || s.isPriorityWait) && s.nodeId !== "gc");
   const hasMultipleTracks = statusStages.length > 0 && gcStages.length > 0;
+  
+  // Calculate "now" position based on progress
+  // Find the furthest point we've reached (end of last completed/in-progress stage)
+  const nowPosition = useMemo(() => {
+    if (!globalProgress) return null;
+    
+    let furthestEndYear = 0;
+    let hasAnyProgress = false;
+    
+    for (const stage of stages) {
+      if (stage.isPriorityWait || stage.nodeId === "gc") continue;
+      
+      const sp = globalProgress.stages[stage.nodeId];
+      if (!sp) continue;
+      
+      if (sp.status === "approved") {
+        // Completed stage - we're past its end
+        hasAnyProgress = true;
+        const stageEnd = stage.startYear + (stage.durationYears?.max || 0);
+        furthestEndYear = Math.max(furthestEndYear, stageEnd);
+      } else if (sp.status === "filed" && sp.filedDate) {
+        // In-progress stage - estimate where we are within it
+        hasAnyProgress = true;
+        const filedDate = parseDate(sp.filedDate);
+        if (filedDate) {
+          const now = new Date();
+          const monthsElapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          const stageMonths = (stage.durationYears?.max || 1) * 12;
+          const progressWithinStage = Math.min(monthsElapsed / stageMonths, 1);
+          const currentPosition = stage.startYear + (stage.durationYears?.max || 0) * progressWithinStage;
+          furthestEndYear = Math.max(furthestEndYear, currentPosition);
+        }
+      }
+    }
+    
+    if (!hasAnyProgress) return null;
+    
+    // Convert to percentage, clamped to reasonable bounds
+    const percent = Math.min(Math.max((furthestEndYear / maxYears) * 100, 2), 95);
+    return percent;
+  }, [stages, globalProgress, maxYears]);
   
   // Render a single track of stages
   const renderTrack = (trackStages: ComposedStage[], trackColor: string) => {
@@ -88,7 +140,6 @@ function MiniTimeline({
           let opacity = 1;
           
           if (stage.isPriorityWait) {
-            // PD wait - show as striped/hatched orange
             color = miniTimelineColors.pdWait;
             if (isApproved) opacity = 0.5;
           } else if (isApproved) {
@@ -126,7 +177,7 @@ function MiniTimeline({
   return (
     <div className="mt-3 relative">
       {/* Timeline tracks */}
-      <div className="space-y-1">
+      <div className="space-y-1 relative">
         {/* Status track (if exists) */}
         {statusStages.length > 0 && (
           <div className="flex items-center gap-2">
@@ -134,7 +185,7 @@ function MiniTimeline({
               className="w-1 h-2.5 rounded-sm flex-shrink-0" 
               style={{ backgroundColor: miniTimelineColors.status }}
             />
-            <div className="flex-1">
+            <div className="flex-1 relative">
               {renderTrack(statusStages, miniTimelineColors.status)}
             </div>
           </div>
@@ -147,9 +198,19 @@ function MiniTimeline({
               className="w-1 h-2.5 rounded-sm flex-shrink-0" 
               style={{ backgroundColor: miniTimelineColors.gc }}
             />
-            <div className="flex-1">
+            <div className="flex-1 relative">
               {renderTrack(gcStages, miniTimelineColors.gc)}
             </div>
+          </div>
+        )}
+        
+        {/* "Now" marker - only show if we have progress */}
+        {nowPosition !== null && (
+          <div 
+            className="absolute top-0 bottom-0 w-0.5 bg-brand-600 z-10 pointer-events-none"
+            style={{ left: `calc(${nowPosition}% + 12px)` }}
+          >
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-brand-600 rounded-full" />
           </div>
         )}
       </div>
@@ -172,9 +233,9 @@ function MiniTimeline({
         </div>
       )}
       
-      {/* Year scale */}
+      {/* Year scale - show "Today" instead of "Now" and only show the "now" label if we have progress */}
       <div className="flex justify-between mt-1.5 text-[9px] text-gray-400">
-        <span>Now</span>
+        <span>{nowPosition !== null ? "Start" : "Today"}</span>
         <span>{Math.ceil(totalYears)} yr</span>
       </div>
     </div>
@@ -806,17 +867,6 @@ function StageEditorSheet({
   );
 }
 
-// Parse date string
-function parseDate(dateStr?: string): Date | null {
-  if (!dateStr) return null;
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  } catch {
-    return null;
-  }
-}
-
 // Main Mobile Timeline View Component
 export default function MobileTimelineView({
   onStageClick,
@@ -959,32 +1009,6 @@ export default function MobileTimelineView({
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="p-4 space-y-3 pb-24">
-        {/* Quick Stats */}
-        {selectedPathId && globalProgress && (
-          <div className="bg-brand-500 rounded-xl p-4 text-white shadow-lg">
-            <div className="text-xs uppercase tracking-wide text-brand-100 font-medium">
-              Tracking Progress
-            </div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold">
-                {(() => {
-                  const trackedPath = paths.find(p => p.id === selectedPathId);
-                  if (!trackedPath) return "—";
-                  let approved = 0;
-                  let total = 0;
-                  for (const stage of trackedPath.stages) {
-                    if (stage.isPriorityWait || stage.nodeId === "gc") continue;
-                    total++;
-                    if (globalProgress.stages[stage.nodeId]?.status === "approved") approved++;
-                  }
-                  return `${approved}/${total}`;
-                })()}
-              </span>
-              <span className="text-brand-200 text-sm">stages complete</span>
-            </div>
-          </div>
-        )}
-
         {/* Empty state */}
         {sortedPaths.length === 0 && (
           <div className="py-12 text-center">
