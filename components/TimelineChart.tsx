@@ -14,6 +14,27 @@ import {
   STATUS_VISA_PROCESSING_MONTHS,
   isStatusVisa,
 } from "@/lib/constants";
+import MobileTimeline from "./MobileTimeline";
+
+// Custom hook for responsive breakpoint detection
+function useIsMobile(breakpoint: number = 1024): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Check if window is available (client-side)
+    if (typeof window === "undefined") return;
+    
+    // Initial check
+    const checkMobile = () => setIsMobile(window.innerWidth < breakpoint);
+    checkMobile();
+    
+    // Listen for resize events
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [breakpoint]);
+  
+  return isMobile;
+}
 
 const PIXELS_PER_YEAR = 160;
 const MAX_YEARS = 8;
@@ -422,6 +443,9 @@ export default function TimelineChart({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [processingTimesLoaded, setProcessingTimesLoaded] = useState(false);
+  
+  // Responsive: detect mobile viewport
+  const isMobile = useIsMobile(1024);
   // Initialize with defaults to prevent timeline flicker when API data loads
   // The defaults match what the API would return, so PD Wait stages render correctly from the start
   const [priorityDates, setPriorityDates] = useState<DynamicData["priorityDates"]>(DEFAULT_PRIORITY_DATES);
@@ -557,6 +581,37 @@ export default function TimelineChart({
     return { nowPosition, hasProgress: true };
   }, [paths, selectedPathId, globalProgress]);
 
+  // Handle stage click from mobile view
+  const handleMobileStageClick = useCallback(
+    (nodeId: string, path: ComposedPath) => {
+      const node = getNode(nodeId);
+      const nodeName = node?.name || nodeId;
+      trackStageClick(nodeId, nodeName);
+      
+      // If this path isn't currently tracked, start tracking it
+      if (selectedPathId !== path.id && onSelectPath) {
+        onSelectPath(path);
+      }
+      
+      onStageClick(nodeId);
+    },
+    [onStageClick, selectedPathId, onSelectPath]
+  );
+
+  // Mobile view: render vertical card-based timeline
+  if (isMobile) {
+    return (
+      <MobileTimeline
+        paths={sortedPaths}
+        onStageClick={handleMobileStageClick}
+        onSelectPath={(path) => onSelectPath?.(path)}
+        selectedPathId={selectedPathId || null}
+        globalProgress={globalProgress || null}
+      />
+    );
+  }
+
+  // Desktop view: render horizontal timeline
   return (
     <div className="w-full h-full overflow-x-auto overflow-y-auto bg-gray-50">
       <div className="min-w-[1200px] p-6">
