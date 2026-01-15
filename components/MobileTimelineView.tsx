@@ -235,7 +235,7 @@ function MiniTimeline({
       
       {/* Year scale */}
       <div className="flex justify-between mt-1.5 text-[9px] text-gray-400">
-        <span>Today</span>
+        <span>0</span>
         <span>{Math.ceil(totalYears)} yr</span>
       </div>
     </div>
@@ -303,6 +303,50 @@ function MobilePathCard({
     ? ((progressInfo.approved + progressInfo.filed * 0.5) / progressInfo.total) * 100 
     : 0;
 
+  // Calculate estimated remaining time for tracked paths
+  const remainingEstimate = useMemo(() => {
+    if (!globalProgress) return null;
+    
+    const now = new Date();
+    let remainingMonths = 0;
+    
+    // Only count GC track stages for remaining time
+    const gcStages = path.stages.filter(s => s.track === "gc" && s.nodeId !== "gc");
+    
+    for (const stage of gcStages) {
+      const sp = globalProgress.stages[stage.nodeId];
+      const stageMonths = (stage.durationYears?.max || 0) * 12;
+      
+      if (sp?.status === "approved") {
+        // Done, no remaining time
+        continue;
+      } else if (sp?.status === "filed" && sp.filedDate) {
+        // In progress - calculate remaining
+        const filedDate = parseDate(sp.filedDate);
+        if (filedDate) {
+          const elapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          remainingMonths += Math.max(0, stageMonths - elapsed);
+        }
+      } else {
+        // Not started - full duration
+        remainingMonths += stageMonths;
+      }
+    }
+    
+    // Add PD wait time if exists
+    const pdWait = path.stages.find(s => s.isPriorityWait);
+    if (pdWait) {
+      remainingMonths += (pdWait.durationYears?.max || 0) * 12;
+    }
+    
+    if (remainingMonths < 12) {
+      return `~${Math.round(remainingMonths)} mo`;
+    } else {
+      const years = remainingMonths / 12;
+      return `~${years.toFixed(1)} yr`;
+    }
+  }, [path.stages, globalProgress]);
+
   return (
     <div 
       className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all ${
@@ -314,11 +358,18 @@ function MobilePathCard({
         className="p-4 cursor-pointer active:bg-gray-50"
         onClick={onToggleExpand}
       >
-        {/* Tracking indicator */}
+        {/* Tracking indicator with time remaining */}
         {isTracked && (
-          <div className="flex items-center gap-1.5 text-xs text-brand-600 font-medium mb-2">
-            <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-            Tracking this path
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5 text-xs text-brand-600 font-medium">
+              <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+              Tracking
+            </div>
+            {remainingEstimate && (
+              <div className="text-sm font-semibold text-brand-700">
+                {remainingEstimate} remaining
+              </div>
+            )}
           </div>
         )}
         
