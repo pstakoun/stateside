@@ -7,6 +7,7 @@ import {
   Experience,
   CurrentStatus,
   CountryOfBirth,
+  EBCategory,
   defaultFilters,
 } from "@/lib/filter-paths";
 import { trackOnboardingComplete } from "@/lib/analytics";
@@ -56,9 +57,39 @@ function hasAnySpecialCircumstance(filters: FilterState): boolean {
   );
 }
 
+function hasExistingCaseInfo(filters: FilterState): boolean {
+  return filters.hasApprovedI140 || filters.existingPriorityDate !== null;
+}
+
+const ebCategoryOptions: { value: EBCategory; label: string; description: string }[] = [
+  { value: "eb1", label: "EB-1", description: "Priority workers" },
+  { value: "eb2", label: "EB-2", description: "Advanced degree / NIW" },
+  { value: "eb3", label: "EB-3", description: "Skilled workers" },
+];
+
+// Generate year options (from 10 years ago to current year)
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: 15 }, (_, i) => currentYear - i);
+
+const monthOptions = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+];
+
 export default function OnboardingQuiz({ onComplete, initialFilters }: OnboardingQuizProps) {
   const [filters, setFilters] = useState<FilterState>(initialFilters || defaultFilters);
   const [showSpecial, setShowSpecial] = useState(() => hasAnySpecialCircumstance(initialFilters || defaultFilters));
+  const [showExistingCase, setShowExistingCase] = useState(() => hasExistingCaseInfo(initialFilters || defaultFilters));
 
   const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     setFilters((prev) => {
@@ -67,7 +98,25 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
       if (key === "countryOfBirth" && (value === "canada" || value === "mexico")) {
         updated.isCanadianOrMexicanCitizen = false;
       }
+      // Reset priority date fields when unchecking hasApprovedI140
+      if (key === "hasApprovedI140" && value === false) {
+        updated.existingPriorityDate = null;
+        updated.existingPriorityDateCategory = null;
+        updated.needsNewPerm = undefined;
+      }
       return updated;
+    });
+  };
+
+  const updatePriorityDate = (month: number | null, year: number | null) => {
+    setFilters((prev) => {
+      if (month === null || year === null) {
+        return { ...prev, existingPriorityDate: null };
+      }
+      return { 
+        ...prev, 
+        existingPriorityDate: { month, year } 
+      };
     });
   };
 
@@ -375,6 +424,167 @@ export default function OnboardingQuiz({ onComplete, initialFilters }: Onboardin
                       <div className="text-xs text-gray-500">Unlocks EB-5 investor visa path</div>
                     </div>
                   </label>
+                </div>
+              )}
+            </div>
+
+            {/* Existing Immigration Case - Collapsible */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowExistingCase(!showExistingCase)}
+                className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    I have an existing priority date
+                  </span>
+                  {filters.hasApprovedI140 && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">
+                      I-140 approved
+                    </span>
+                  )}
+                </div>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`text-gray-400 transition-transform ${showExistingCase ? "rotate-180" : ""}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {showExistingCase && (
+                <div className="p-4 space-y-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    If you have an approved I-140 or a priority date from a previous case, enter it here to get accurate timeline estimates
+                  </p>
+
+                  {/* Has Approved I-140 */}
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={filters.hasApprovedI140}
+                      onChange={(e) => updateFilter("hasApprovedI140", e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                    />
+                    <div>
+                      <div className="font-medium text-sm text-gray-900">I have an approved I-140</div>
+                      <div className="text-xs text-gray-500">Your priority date is locked in and can be ported</div>
+                    </div>
+                  </label>
+
+                  {/* Priority Date Details - shown when I-140 is approved */}
+                  {filters.hasApprovedI140 && (
+                    <div className="space-y-4 pl-1">
+                      {/* Priority Date Month/Year */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority date
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={filters.existingPriorityDate?.month || ""}
+                            onChange={(e) => {
+                              const month = e.target.value ? parseInt(e.target.value) : null;
+                              updatePriorityDate(month, filters.existingPriorityDate?.year || currentYear);
+                            }}
+                            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+                          >
+                            <option value="">Month</option>
+                            {monthOptions.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={filters.existingPriorityDate?.year || ""}
+                            onChange={(e) => {
+                              const year = e.target.value ? parseInt(e.target.value) : null;
+                              updatePriorityDate(filters.existingPriorityDate?.month || 1, year);
+                            }}
+                            className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+                          >
+                            <option value="">Year</option>
+                            {yearOptions.map((y) => (
+                              <option key={y} value={y}>
+                                {y}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Found on your I-140 approval notice
+                        </p>
+                      </div>
+
+                      {/* EB Category */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          I-140 category
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {ebCategoryOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => updateFilter("existingPriorityDateCategory", option.value)}
+                              className={`px-3 py-2 rounded-lg border-2 text-sm transition-all ${
+                                filters.existingPriorityDateCategory === option.value
+                                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+                              }`}
+                            >
+                              <span className="font-medium">{option.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Employer Switch Question */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Are you changing employers?
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateFilter("needsNewPerm", false)}
+                            className={`flex-1 px-3 py-2.5 rounded-lg border-2 text-sm text-center transition-all ${
+                              filters.needsNewPerm === false
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-gray-200 text-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="font-medium">No, same employer</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">Skip new PERM</div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateFilter("needsNewPerm", true)}
+                            className={`flex-1 px-3 py-2.5 rounded-lg border-2 text-sm text-center transition-all ${
+                              filters.needsNewPerm === true
+                                ? "border-amber-500 bg-amber-50 text-amber-700"
+                                : "border-gray-200 text-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="font-medium">Yes, new employer</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">Need new PERM</div>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          Your priority date can be ported to a new employer, but you&apos;ll need to restart PERM
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
