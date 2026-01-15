@@ -12,6 +12,7 @@ import {
   STATUS_VISA_NODES, 
   STATUS_VISA_VALIDITY_MONTHS,
   isStatusVisa,
+  PRIORITY_DATE_STAGES,
 } from "@/lib/constants";
 
 interface MobileTimelineViewProps {
@@ -271,6 +272,7 @@ function MobilePathCard({
   onSelectPath,
   onStageClick,
   globalProgress,
+  onUpdatePortedPD,
 }: {
   path: ComposedPath;
   isTracked: boolean;
@@ -279,6 +281,7 @@ function MobilePathCard({
   onSelectPath: () => void;
   onStageClick: (nodeId: string) => void;
   globalProgress: GlobalProgress | null | undefined;
+  onUpdatePortedPD?: (date: string | null, category: string | null) => void;
 }) {
   // Calculate progress
   const progressInfo = useMemo(() => {
@@ -508,6 +511,15 @@ function MobilePathCard({
               {isTracked ? "Stop Tracking" : "Track This Path"}
             </button>
           </div>
+          
+          {/* Priority Date Section - only show for tracked paths */}
+          {isTracked && (
+            <MobilePriorityDateSection
+              path={path}
+              globalProgress={globalProgress}
+              onUpdatePortedPD={onUpdatePortedPD}
+            />
+          )}
           
           {/* Stages */}
           <MobileStageList 
@@ -762,6 +774,253 @@ function MobileStageItem({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Mobile Priority Date Section Component
+function MobilePriorityDateSection({
+  path,
+  globalProgress,
+  onUpdatePortedPD,
+}: {
+  path: ComposedPath;
+  globalProgress: GlobalProgress | null | undefined;
+  onUpdatePortedPD?: (date: string | null, category: string | null) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Find priority date from current path's approved I-140 or equivalent
+  const currentPathPD = useMemo(() => {
+    if (!globalProgress) return null;
+    
+    // Use centralized constant for consistency with TrackerPanel
+    for (const nodeId of Array.from(PRIORITY_DATE_STAGES)) {
+      const stageProgress = globalProgress.stages[nodeId];
+      if (stageProgress?.status === "approved" && stageProgress.priorityDate) {
+        const node = getNode(nodeId);
+        return { date: stageProgress.priorityDate, source: node?.name || nodeId };
+      }
+    }
+    return null;
+  }, [globalProgress]);
+
+  // Effective priority date (earlier of ported vs current)
+  const effectivePD = useMemo(() => {
+    const portedPD = globalProgress?.portedPriorityDate;
+    
+    if (portedPD && currentPathPD?.date) {
+      return portedPD < currentPathPD.date 
+        ? { date: portedPD, source: "Ported from previous case" }
+        : currentPathPD;
+    }
+    if (portedPD) {
+      return { date: portedPD, source: "Ported from previous case" };
+    }
+    return currentPathPD;
+  }, [globalProgress?.portedPriorityDate, currentPathPD]);
+
+  // Format date for display
+  const formatDateDisplay = (dateStr?: string): string => {
+    if (!dateStr) return "";
+    try {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Calculate time elapsed since a date
+  const timeElapsed = (dateStr?: string): string => {
+    if (!dateStr) return "";
+    try {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return "in the future";
+      if (diffDays === 0) return "today";
+      if (diffDays === 1) return "yesterday";
+      if (diffDays < 30) return `${diffDays} days ago`;
+      if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30);
+        return `${months} month${months > 1 ? "s" : ""} ago`;
+      }
+      const years = (diffDays / 365).toFixed(1);
+      return `${years} years ago`;
+    } catch {
+      return "";
+    }
+  };
+
+  // Calculate PD aging benefit
+  const pdAgingBenefit = useMemo(() => {
+    if (!effectivePD?.date || !globalProgress) return null;
+    
+    const now = new Date();
+    const pdDate = parseDate(effectivePD.date);
+    if (!pdDate) return null;
+    
+    // Calculate months until I-485 (when PD matters)
+    let monthsUntilI485 = 0;
+    const trackableStages = path.stages.filter(s => !s.isPriorityWait && s.nodeId !== "gc");
+    
+    for (const stage of trackableStages) {
+      if (stage.nodeId === "i485") break;
+      
+      const sp = globalProgress.stages[stage.nodeId] || { status: "not_started" };
+      const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
+      
+      if (sp.status === "approved") continue;
+      
+      if (sp.status === "filed" && sp.filedDate) {
+        const filedDate = parseDate(sp.filedDate);
+        if (filedDate && stageMaxMonths > 0) {
+          const elapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          monthsUntilI485 += Math.max(0, stageMaxMonths - elapsed);
+        }
+      } else if (stageMaxMonths > 0) {
+        monthsUntilI485 += stageMaxMonths;
+      }
+    }
+
+    if (monthsUntilI485 < 6) return null; // Not significant
+
+    const pdAgeNow = (now.getTime() - pdDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    const pdAgeAtI485 = pdAgeNow + monthsUntilI485;
+
+    return {
+      currentAge: Math.round(pdAgeNow),
+      futureAge: Math.round(pdAgeAtI485),
+      monthsGained: Math.round(monthsUntilI485),
+    };
+  }, [effectivePD, globalProgress, path.stages]);
+
+  return (
+    <div className="border-t border-gray-100 bg-amber-50/50">
+      {/* Priority Date Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between active:bg-amber-100/50"
+      >
+        <div className="flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-600">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span className="text-sm font-medium text-gray-900">Priority Date</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {effectivePD ? (
+            <span className="text-sm font-semibold text-amber-700">
+              {formatDateDisplay(effectivePD.date)}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500">Not set</span>
+          )}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-3">
+          {effectivePD ? (
+            <>
+              <div className="text-sm text-gray-600">
+                <span className="text-amber-800 font-medium">{effectivePD.source}</span>
+                <span className="text-gray-500 ml-1">({timeElapsed(effectivePD.date)})</span>
+              </div>
+              
+              {/* PD Aging Benefit */}
+              {pdAgingBenefit && (
+                <div className="p-3 bg-green-100 border border-green-200 rounded-lg text-sm">
+                  <div className="font-medium text-green-800">PD Aging Benefit</div>
+                  <div className="text-green-700 mt-0.5">
+                    Your PD will be <strong>{pdAgingBenefit.futureAge} months old</strong> by the time you file I-485
+                    (+{pdAgingBenefit.monthsGained} months closer to being current)
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">
+              No priority date yet. Established when I-140 is approved.
+            </p>
+          )}
+
+          {/* Ported PD Section */}
+          <div className="pt-2 border-t border-amber-200/50">
+            <div className="text-xs font-medium text-gray-700 mb-2">
+              {globalProgress?.portedPriorityDate ? "Ported Priority Date" : "Have a PD from a previous employer?"}
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              If you have an approved I-140 from a <strong>previous employer</strong>, you can port that priority date to your new case.
+            </p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Priority Date</label>
+                <input
+                  type="date"
+                  value={globalProgress?.portedPriorityDate || ""}
+                  onChange={(e) => onUpdatePortedPD?.(
+                    e.target.value || null, 
+                    globalProgress?.portedPriorityDateCategory || null
+                  )}
+                  className="w-full px-3 py-2.5 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Category</label>
+                <select
+                  value={globalProgress?.portedPriorityDateCategory || ""}
+                  onChange={(e) => onUpdatePortedPD?.(
+                    globalProgress?.portedPriorityDate || null, 
+                    e.target.value || null
+                  )}
+                  className="w-full px-3 py-2.5 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+                >
+                  <option value="">Select category</option>
+                  <option value="eb1">EB-1</option>
+                  <option value="eb2">EB-2</option>
+                  <option value="eb3">EB-3</option>
+                </select>
+              </div>
+              
+              {globalProgress?.portedPriorityDate && (
+                <button
+                  onClick={() => onUpdatePortedPD?.(null, null)}
+                  className="text-sm text-red-600 font-medium active:text-red-700 py-1"
+                >
+                  Remove ported PD
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1122,6 +1381,7 @@ export default function MobileTimelineView({
             onSelectPath={() => handleSelectPath(path)}
             onStageClick={(nodeId) => handleStageClick(nodeId, path)}
             globalProgress={globalProgress}
+            onUpdatePortedPD={onUpdatePortedPD}
           />
         ))}
 
