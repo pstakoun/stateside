@@ -67,9 +67,10 @@ const ebCategoryOptions: { value: EBCategory; label: string; description: string
   { value: "eb3", label: "EB-3", description: "Skilled workers" },
 ];
 
-// Generate year options (from 10 years ago to current year)
+// Generate year options (from 20 years ago to current year)
+// Extended range to accommodate older priority dates (especially for India/China EB-2/EB-3)
 const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 15 }, (_, i) => currentYear - i);
+const yearOptions = Array.from({ length: 21 }, (_, i) => currentYear - i);
 
 const monthOptions = [
   { value: 1, label: "January" },
