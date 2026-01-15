@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import TimelineChart from "@/components/TimelineChart";
+import MobileTimelineView from "@/components/MobileTimelineView";
 import PathDetail from "@/components/PathDetail";
 import ProfileSummary from "@/components/ProfileSummary";
 import OnboardingQuiz from "@/components/OnboardingQuiz";
@@ -9,6 +10,26 @@ import TrackerPanel from "@/components/TrackerPanel";
 import { FilterState, defaultFilters } from "@/lib/filter-paths";
 import { ComposedPath } from "@/lib/path-composer";
 import { getStoredProfile, saveUserProfile } from "@/lib/storage";
+
+// Custom hook for responsive detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Check on mount
+    checkMobile();
+    
+    // Listen for resize
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+  
+  return isMobile;
+}
 
 // Key for storing progress in localStorage
 const PROGRESS_STORAGE_KEY = "stateside_progress_v2";
@@ -90,6 +111,7 @@ export default function Home() {
   const [matchingCount, setMatchingCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const isMobile = useIsMobile();
   
   // Global progress state - shared across all paths
   const [globalProgress, setGlobalProgress] = useState<GlobalProgress | null>(null);
@@ -297,8 +319,9 @@ export default function Home() {
   // Handle clicking a stage in the timeline
   const handleTimelineStageClick = (nodeId: string) => {
     if (globalProgress?.selectedPathId && selectedPath) {
-      // If tracking, expand this stage in the panel
+      // If tracking, expand this stage in the panel/sheet
       setExpandedStageId(nodeId);
+      // On mobile, the MobileTimelineView handles showing the editor directly
     } else {
       // Otherwise, show the info panel
       setSelectedNode(nodeId);
@@ -346,11 +369,11 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+      <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {/* Logo */}
-            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center flex-shrink-0">
               <svg
                 width="20"
                 height="20"
@@ -375,8 +398,8 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Progress indicator - only show when tracking */}
-          {globalProgress?.selectedPathId && selectedPath && (
+          {/* Progress indicator - desktop only when tracking */}
+          {globalProgress?.selectedPathId && selectedPath && !isMobile && (
             <div className="flex items-center gap-3 text-sm">
               <div className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg">
                 <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
@@ -398,6 +421,16 @@ export default function Home() {
               </button>
             </div>
           )}
+          
+          {/* Mobile: Show tracking indicator */}
+          {globalProgress?.selectedPathId && selectedPath && isMobile && (
+            <div className="flex items-center gap-2 text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg text-sm">
+              <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+              <span className="font-medium">
+                {progressSummary ? `${progressSummary.approved}/${progressSummary.total}` : "Tracking"}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -412,9 +445,9 @@ export default function Home() {
 
       {/* Main content area with timeline and tracker panel */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Timeline area */}
-        <div className={`flex-1 relative overflow-hidden transition-all ${globalProgress?.selectedPathId ? "mr-0" : ""}`}>
-          <TimelineChart
+        {/* Mobile View */}
+        {isMobile ? (
+          <MobileTimelineView
             onStageClick={handleTimelineStageClick}
             filters={filters}
             onMatchingCountChange={handleMatchingCountChange}
@@ -422,20 +455,39 @@ export default function Home() {
             onPathsGenerated={handlePathsGenerated}
             selectedPathId={globalProgress?.selectedPathId || null}
             globalProgress={globalProgress}
-          />
-        </div>
-
-        {/* Tracker Panel - shows when a path is selected */}
-        {globalProgress && selectedPath && (
-          <TrackerPanel
-            path={selectedPath}
-            progress={globalProgress}
             onUpdateStage={handleUpdateStage}
             onUpdatePortedPD={handleUpdatePortedPD}
-            onClose={() => setSelectedPath(null)}
             expandedStageId={expandedStageId}
             onExpandStage={setExpandedStageId}
           />
+        ) : (
+          <>
+            {/* Desktop Timeline */}
+            <div className={`flex-1 relative overflow-hidden transition-all ${globalProgress?.selectedPathId ? "mr-0" : ""}`}>
+              <TimelineChart
+                onStageClick={handleTimelineStageClick}
+                filters={filters}
+                onMatchingCountChange={handleMatchingCountChange}
+                onSelectPath={handleSelectPath}
+                onPathsGenerated={handlePathsGenerated}
+                selectedPathId={globalProgress?.selectedPathId || null}
+                globalProgress={globalProgress}
+              />
+            </div>
+
+            {/* Tracker Panel - shows when a path is selected (desktop only) */}
+            {globalProgress && selectedPath && (
+              <TrackerPanel
+                path={selectedPath}
+                progress={globalProgress}
+                onUpdateStage={handleUpdateStage}
+                onUpdatePortedPD={handleUpdatePortedPD}
+                onClose={() => setSelectedPath(null)}
+                expandedStageId={expandedStageId}
+                onExpandStage={setExpandedStageId}
+              />
+            )}
+          </>
         )}
 
         {/* Slide-out detail panel for stage info (only when not tracking) */}
