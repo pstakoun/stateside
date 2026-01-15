@@ -801,6 +801,11 @@ function MobileStageItem({
   );
 }
 
+// Helper to calculate months between two dates
+function monthsBetween(date1: Date, date2: Date): number {
+  return (date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24 * 30);
+}
+
 // Priority Date Summary Card - shows at top of tracked path when expanded
 function PriorityDateSummaryCard({
   globalProgress,
@@ -840,6 +845,53 @@ function PriorityDateSummaryCard({
   }, [globalProgress, currentPathPD]);
 
   const hasPortedPD = !!globalProgress?.portedPriorityDate;
+
+  // Calculate PD aging benefit - how much the PD will age while completing other steps
+  const pdAgingBenefit = useMemo(() => {
+    if (!effectivePD?.date || !globalProgress) return null;
+    
+    const now = new Date();
+    
+    // Filter to trackable stages (exclude PD wait and GC marker)
+    const trackableStages = stages.filter(s => !s.isPriorityWait && s.nodeId !== "gc");
+    
+    // Calculate months until I-485 filing
+    let monthsUntilI485 = 0;
+    
+    for (const stage of trackableStages) {
+      if (stage.nodeId === "i485") break;
+      
+      const sp = globalProgress.stages[stage.nodeId] || { status: "not_started" };
+      const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
+      
+      if (sp.status === "approved") continue;
+      
+      if (sp.status === "filed" && sp.filedDate) {
+        const filedDate = parseDate(sp.filedDate);
+        if (filedDate && stageMaxMonths > 0) {
+          const elapsed = monthsBetween(filedDate, now);
+          monthsUntilI485 += Math.max(0, stageMaxMonths - elapsed);
+        }
+      } else if (stageMaxMonths > 0) {
+        monthsUntilI485 += stageMaxMonths;
+      }
+    }
+
+    // Only show if significant (6+ months of aging)
+    if (monthsUntilI485 < 6) return null;
+
+    const pdDate = parseDate(effectivePD.date);
+    if (!pdDate) return null;
+
+    const pdAgeNow = monthsBetween(pdDate, now);
+    const pdAgeAtI485 = pdAgeNow + monthsUntilI485;
+
+    return {
+      currentAge: Math.round(pdAgeNow),
+      futureAge: Math.round(pdAgeAtI485),
+      monthsGained: Math.round(monthsUntilI485),
+    };
+  }, [effectivePD, stages, globalProgress]);
 
   return (
     <div className="bg-amber-50 rounded-xl border border-amber-200 overflow-hidden">
@@ -899,6 +951,26 @@ function PriorityDateSummaryCard({
           <p className="text-xs text-gray-500 mt-2 pl-10">
             Tap + to add a priority date from a previous employer
           </p>
+        )}
+        
+        {/* PD Aging Benefit - show when there's a significant benefit */}
+        {pdAgingBenefit && (
+          <div className="mt-3 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-600">
+                  <path d="M5 12l5 5L20 7" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-green-800">PD Aging Benefit</div>
+                <p className="text-[11px] text-green-700 mt-0.5">
+                  Your PD will be <strong>{pdAgingBenefit.futureAge} months old</strong> by I-485 filing
+                  <span className="text-green-600"> (+{pdAgingBenefit.monthsGained} mo closer to current)</span>
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
