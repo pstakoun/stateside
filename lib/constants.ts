@@ -82,9 +82,14 @@ export function isStatusVisa(nodeId: string): boolean {
 
 // ============== PRIORITY DATE STAGES ==============
 // Stages that can establish or use a priority date
+// NOTE: These must be actual node IDs from visa-paths.json, not GC method IDs
+// - i140: Standard I-140 petition (PERM route)
+// - perm: PERM labor certification (priority date established when approved)
+// - eb2niw: EB-2 NIW I-140 petition (self-petition)
+// - eb1: EB-1 I-140 petition (covers EB-1A, EB-1B, EB-1C subcategories)
 
 export const PRIORITY_DATE_STAGES = new Set([
-  'i140', 'perm', 'eb2niw', 'eb1a', 'eb1b', 'eb1c', 'eb1'
+  'i140', 'perm', 'eb2niw', 'eb1'
 ]);
 
 export function canEstablishPriorityDate(nodeId: string): boolean {

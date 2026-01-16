@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "clean": "rm -rf .next .tsbuildinfo",
-    "test": "npx tsx test-exhaustive.ts && npx tsx test-rules.ts"
+    "test": "npx tsx test-exhaustive.ts && npx tsx test-rules.ts && npx tsx test-constants.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.0",

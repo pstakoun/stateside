@@ -1066,7 +1066,8 @@ function StageEditorSheet({
 }) {
   const node = getNode(stage.nodeId);
   const nodeName = node?.name || stage.nodeId;
-  const canHavePriorityDate = ["perm", "i140", "i140_niw"].includes(stage.nodeId);
+  // Use centralized constant for consistency with TrackerPanel
+  const canHavePriorityDate = PRIORITY_DATE_STAGES.has(stage.nodeId);
   const stageMaxMonths = (stage.durationYears?.max || 0) * 12;
 
   // Calculate remaining time for filed stages

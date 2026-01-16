@@ -180,9 +180,10 @@ function adjustStagesForProgress(
     let adjustedStart = stage.startYear;
     let adjustedDuration = stage.durationYears;
 
-    const isStatusVisa = STATUS_VISA_NODES.has(stage.nodeId);
+    // Use the centralized isStatusVisa function from lib/constants.ts
+    const stageIsStatusVisa = isStatusVisa(stage.nodeId);
     
-    if (isStatusVisa && sp?.status === "approved" && sp.approvedDate) {
+    if (stageIsStatusVisa && sp?.status === "approved" && sp.approvedDate) {
       // STATUS VISA APPROVED: Visa validity STARTS at approved date
       // The bar shows the validity period, not the processing time
       trackHasProgress[track] = true;
@@ -208,7 +209,7 @@ function adjustStagesForProgress(
           trackEndYears[track] = Math.max(trackEndYears[track], endYear);
         }
       }
-    } else if (isStatusVisa && sp?.status === "filed" && sp.filedDate) {
+    } else if (stageIsStatusVisa && sp?.status === "filed" && sp.filedDate) {
       // STATUS VISA FILED: Show processing time + upcoming validity
       trackHasProgress[track] = true;
       const filedDate = parseDate(sp.filedDate);
