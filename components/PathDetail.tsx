@@ -171,7 +171,7 @@ export default function PathDetail({ nodeId, onClose }: PathDetailProps) {
           {/* Evidence Categories */}
           {"evidenceCategories" in node && (
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Evidence (need 3 of 8)</h3>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">O-1A Evidence (need 3 of 8)</h3>
               <ul className="space-y-1">
                 {(node.evidenceCategories as string[]).map((cat, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-gray-700">
@@ -358,7 +358,7 @@ export default function PathDetail({ nodeId, onClose }: PathDetailProps) {
         {"evidenceCategories" in node && (
           <div>
             <h3 className="font-semibold text-gray-900 mb-2">
-              Evidence Categories (need 3 of 8)
+              O-1A Evidence Categories (need 3 of 8)
             </h3>
             <ul className="space-y-1 text-sm text-gray-700">
               {(node.evidenceCategories as string[]).map((cat, i) => (

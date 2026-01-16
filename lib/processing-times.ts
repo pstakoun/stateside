@@ -103,42 +103,49 @@ export function adaptDynamicData(data: DynamicData): ProcessingTimes {
 }
 
 // Default fallback values if fetch fails
+// Default fallback values if fetch fails
+// These dates represent what DOL/USCIS was CURRENTLY PROCESSING as of Jan 2026
+// "currentlyProcessing" = cases being worked on (dates in the PAST)
+// "asOf" = when this data was captured
 export const DEFAULT_PROCESSING_TIMES: ProcessingTimes = {
-  lastUpdated: "2025-12-01",
+  lastUpdated: "2026-01-15",
   uscis: {
     "I-140": [
-      { serviceCenter: "Texas", processingTime: { min: 6, max: 9 }, asOf: "2025-12-01" },
-      { serviceCenter: "Nebraska", processingTime: { min: 5, max: 8 }, asOf: "2025-12-01" },
+      { serviceCenter: "Texas", processingTime: { min: 6, max: 9 }, asOf: "2026-01-15" },
+      { serviceCenter: "Nebraska", processingTime: { min: 5, max: 8 }, asOf: "2026-01-15" },
     ],
     "I-485": [
-      { serviceCenter: "National", processingTime: { min: 10, max: 18 }, asOf: "2025-12-01" },
+      { serviceCenter: "National", processingTime: { min: 10, max: 18 }, asOf: "2026-01-15" },
     ],
     "I-765": [
-      { serviceCenter: "National", processingTime: { min: 3, max: 5 }, asOf: "2025-12-01" },
+      { serviceCenter: "National", processingTime: { min: 3, max: 5 }, asOf: "2026-01-15" },
     ],
     "I-130": [
-      { serviceCenter: "National", processingTime: { min: 12, max: 24 }, asOf: "2025-12-01" },
+      { serviceCenter: "National", processingTime: { min: 12, max: 24 }, asOf: "2026-01-15" },
     ],
     "I-129": [
-      { serviceCenter: "National", processingTime: { min: 1, max: 3 }, asOf: "2025-12-01" },
+      { serviceCenter: "National", processingTime: { min: 1, max: 3 }, asOf: "2026-01-15" },
     ],
   },
   dol: {
     pwd: {
+      // DOL is currently processing PWD cases filed ~6 months ago
       currentlyProcessing: "July 2025",
       estimatedMonths: 6,
-      asOf: "2025-12-01",
+      asOf: "2026-01-15",
     },
     perm: {
       analystReview: {
+        // DOL is currently processing PERM cases filed ~17 months ago
         currentlyProcessing: "August 2024",
         estimatedMonths: 17,
       },
       auditReview: {
+        // PERM audits take longer - processing cases from ~22 months ago
         currentlyProcessing: "March 2024",
         estimatedMonths: 22,
       },
-      asOf: "2025-12-01",
+      asOf: "2026-01-15",
     },
   },
 };

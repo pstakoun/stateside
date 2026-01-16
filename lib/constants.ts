@@ -9,10 +9,12 @@ export const STATUS_VISA_NODES = new Set([
 ]);
 
 // Validity duration in months for status visas (how long the visa is valid after approval)
+// NOTE: These represent MAXIMUM typical validity for timeline display purposes
 export const STATUS_VISA_VALIDITY_MONTHS: Record<string, number> = {
   tn: 36,   // TN valid for 3 years (renewable)
   h1b: 36,  // H1B valid for 3 years (initial, can extend to 6)
-  opt: 36,  // OPT valid for 1-3 years (STEM extension)
+  opt: 36,  // OPT: 12 months standard, up to 36 months with STEM extension
+            // The path-composer.ts handles STEM vs non-STEM distinction
   f1: 48,   // Student status for duration of studies
   l1a: 36,  // L1A valid for 3 years (initial)
   l1b: 36,  // L1B valid for 3 years (initial)
