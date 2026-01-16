@@ -110,7 +110,8 @@ async function fetchDOLData(): Promise<{
     const html = await response.text();
 
     // Parse PWD (H-1B OEWS) - look for H-1B row in PWD table
-    // HTML structure: <td headers="a">H-1B</td><td headers="b">July 2025</td>
+    // HTML structure: <td headers="a">H-1B</td><td headers="b">[Month Year]</td>
+    // This represents the date DOL is currently processing (should be ~6 months ago)
     let pwdDate = "July 2025";
     const pwdMatch = html.match(/>H-1B<\/td>\s*<td[^>]*>((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/i);
     if (pwdMatch) pwdDate = pwdMatch[1];
