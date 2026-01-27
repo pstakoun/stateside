@@ -151,13 +151,26 @@ export function priorityDateToISOString(pd: PriorityDate): string {
   return `${pd.year}-${month}-${day}`;
 }
 
+// Helper to get the number of days in a given month
+function getDaysInMonth(year: number, month: number): number {
+  // month is 1-indexed (1=Jan, 12=Dec)
+  // new Date(year, month, 0) gives last day of previous month, so month here is 1-indexed
+  return new Date(year, month, 0).getDate();
+}
+
 // Helper to parse YYYY-MM-DD string to PriorityDate
 export function parsePriorityDateFromISO(dateStr: string): PriorityDate | null {
   if (!dateStr) return null;
   const parts = dateStr.split("-").map(Number);
   if (parts.length !== 3 || parts.some(isNaN)) return null;
   const [year, month, day] = parts;
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // Validate year is reasonable (1900-2100)
+  if (year < 1900 || year > 2100) return null;
+  // Validate month
+  if (month < 1 || month > 12) return null;
+  // Validate day against actual days in that month (handles Feb 29 in leap years)
+  const daysInMonth = getDaysInMonth(year, month);
+  if (day < 1 || day > daysInMonth) return null;
   return { day, month, year };
 }
 

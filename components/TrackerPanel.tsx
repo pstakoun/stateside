@@ -67,13 +67,15 @@ function timeElapsed(dateStr?: string): string {
     const months = Math.floor(diffDays / 30);
     return `${months} month${months > 1 ? "s" : ""} ago`;
   }
-  const years = (diffDays / 365).toFixed(1);
+  const years = (diffDays / 365.25).toFixed(1);
   return `${years} years ago`;
 }
 
-// Calculate months between two dates
+// Calculate months between two dates using calendar months
 function monthsBetween(date1: Date, date2: Date): number {
-  return (date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24 * 30);
+  const months = (date2.getFullYear() - date1.getFullYear()) * 12 +
+    (date2.getMonth() - date1.getMonth());
+  return Math.max(0, months);
 }
 
 // Format months for display

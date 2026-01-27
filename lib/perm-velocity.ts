@@ -392,13 +392,18 @@ function calculateHistoricalAdvancementRate(
     // Remove outliers (min and max)
     ratesForAverage = yearOverYearRates.slice(1, -1);
   }
-  
+
+  // Guard against empty array (return default 6 months/year if no data)
+  if (ratesForAverage.length === 0) {
+    return 6;
+  }
+
   // Calculate trimmed average
   const trimmedAvg = ratesForAverage.reduce((a, b) => a + b, 0) / ratesForAverage.length;
-  
+
   // Also calculate median for comparison
   const medianIndex = Math.floor(yearOverYearRates.length / 2);
-  const median = yearOverYearRates[medianIndex];
+  const median = yearOverYearRates[medianIndex] ?? trimmedAvg;
   
   // Use the SLOWER of trimmed average or median (slightly conservative)
   // This gives realistic estimates while still being somewhat cautious
