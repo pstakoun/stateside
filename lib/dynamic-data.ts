@@ -225,6 +225,18 @@ async function fetchVisaBulletin(): Promise<{
     const eb2Matches = Array.from(html.matchAll(/<td>2nd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/gi));
     const eb3Matches = Array.from(html.matchAll(/<td>3rd<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>/gi));
 
+    // Log warning if any parsing failed (using defaults)
+    const hasAllFinalActionMatches = eb1Matches[0] && eb2Matches[0] && eb3Matches[0];
+    const hasAllDatesForFilingMatches = eb1Matches[1] && eb2Matches[1] && eb3Matches[1];
+
+    if (!hasAllFinalActionMatches || !hasAllDatesForFilingMatches) {
+      console.warn(
+        "Visa Bulletin parsing incomplete - using defaults for some values.",
+        "Final Action matches:", { eb1: !!eb1Matches[0], eb2: !!eb2Matches[0], eb3: !!eb3Matches[0] },
+        "Dates for Filing matches:", { eb1: !!eb1Matches[1], eb2: !!eb2Matches[1], eb3: !!eb3Matches[1] }
+      );
+    }
+
     // First match = Final Action Dates, Second match = Dates for Filing
     const finalAction: VisaBulletinChart = {
       eb1: {

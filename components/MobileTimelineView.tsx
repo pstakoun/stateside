@@ -133,9 +133,10 @@ function MiniTimeline({
         hasGcProgress = true;
         const filedDate = parseDate(sp.filedDate);
         if (filedDate) {
-          const monthsElapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          const monthsElapsed = (now.getFullYear() - filedDate.getFullYear()) * 12 +
+            (now.getMonth() - filedDate.getMonth());
           const stageMonths = stageDuration * 12;
-          const progressRatio = Math.min(monthsElapsed / stageMonths, 0.95); // Cap at 95% within stage
+          const progressRatio = Math.min(Math.max(0, monthsElapsed) / stageMonths, 0.95); // Cap at 95% within stage
           const positionInStage = stageStart + (stageDuration * progressRatio);
           furthestGcPosition = Math.max(furthestGcPosition, positionInStage);
         }
@@ -338,9 +339,11 @@ function MobilePathCard({
     
     const now = new Date();
     
-    // Helper to calculate months between dates
+    // Helper to calculate months between dates using calendar months
     const monthsBetween = (date1: Date, date2: Date): number => {
-      return (date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      const months = (date2.getFullYear() - date1.getFullYear()) * 12 +
+        (date2.getMonth() - date1.getMonth());
+      return Math.max(0, months);
     };
     
     // Only count GC track stages (not status track like TN/H-1B)
@@ -881,7 +884,7 @@ function MobilePriorityDateSection({
         const months = Math.floor(diffDays / 30);
         return `${months} month${months > 1 ? "s" : ""} ago`;
       }
-      const years = (diffDays / 365).toFixed(1);
+      const years = (diffDays / 365.25).toFixed(1);
       return `${years} years ago`;
     } catch {
       return "";
@@ -911,8 +914,9 @@ function MobilePriorityDateSection({
       if (sp.status === "filed" && sp.filedDate) {
         const filedDate = parseDate(sp.filedDate);
         if (filedDate && stageMaxMonths > 0) {
-          const elapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-          monthsUntilI485 += Math.max(0, stageMaxMonths - elapsed);
+          const elapsed = (now.getFullYear() - filedDate.getFullYear()) * 12 +
+            (now.getMonth() - filedDate.getMonth());
+          monthsUntilI485 += Math.max(0, stageMaxMonths - Math.max(0, elapsed));
         }
       } else if (stageMaxMonths > 0) {
         monthsUntilI485 += stageMaxMonths;
@@ -921,8 +925,9 @@ function MobilePriorityDateSection({
 
     if (monthsUntilI485 < 6) return null; // Not significant
 
-    const pdAgeNow = (now.getTime() - pdDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    const pdAgeAtI485 = pdAgeNow + monthsUntilI485;
+    const pdAgeNow = (now.getFullYear() - pdDate.getFullYear()) * 12 +
+      (now.getMonth() - pdDate.getMonth());
+    const pdAgeAtI485 = Math.max(0, pdAgeNow) + monthsUntilI485;
 
     return {
       currentAge: Math.round(pdAgeNow),
@@ -1077,8 +1082,8 @@ function StageEditorSheet({
     if (!filedDate) return null;
     
     const now = new Date();
-    const diffMs = now.getTime() - filedDate.getTime();
-    const monthsElapsed = diffMs / (1000 * 60 * 60 * 24 * 30);
+    const monthsElapsed = (now.getFullYear() - filedDate.getFullYear()) * 12 +
+      (now.getMonth() - filedDate.getMonth());
     
     if (stageMaxMonths === 0) return null;
     const remaining = Math.max(0, stageMaxMonths - monthsElapsed);
@@ -1341,9 +1346,10 @@ export default function MobileTimelineView({
         hasGcProgress = true;
         const filedDate = parseDate(sp.filedDate);
         if (filedDate) {
-          const monthsElapsed = (now.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          const monthsElapsed = (now.getFullYear() - filedDate.getFullYear()) * 12 +
+            (now.getMonth() - filedDate.getMonth());
           const stageMonths = stageDuration * 12;
-          const progressRatio = Math.min(monthsElapsed / stageMonths, 0.95);
+          const progressRatio = Math.min(Math.max(0, monthsElapsed) / stageMonths, 0.95);
           const positionInStage = stageStart + (stageDuration * progressRatio);
           furthestGcPosition = Math.max(furthestGcPosition, positionInStage);
         }
